@@ -78,7 +78,7 @@ e2function void entity:remPiston(number iD)
 end
 
 e2function void entity:remPiston(string iD)
-  if(not (this and this:IsValid())) then return end
+  if(not isEntity(this)) then return end
   local tP = getData(this); if(not tP) then return end
   setData(this, iD, nil)
 end
