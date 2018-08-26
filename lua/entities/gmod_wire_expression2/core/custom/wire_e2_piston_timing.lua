@@ -98,7 +98,7 @@ end
 e2function number entity:allPiston()
   if(not isEntity(this)) then return 0 end
   local tP = getData(this); if(not tP) then return 0 end
-  local iA = 0; for key, val in pairs(tP) do iA = iA + 1 end
-  return iA
+  local iP = 0; for key, val in pairs(tP) do iP = iP + 1 end
+  return iP
 end
 

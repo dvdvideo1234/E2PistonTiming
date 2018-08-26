@@ -7,7 +7,7 @@
 set RevPath=%~dp0
 set BinPath=F:\Games\Steam\steamapps\common\GarrysMod\bin
 set Name=PistonTimingE2
-set ID=
+set ID=1493837859
 set Dirs=(lua)
 
 title Addon %Name% updater/publisher
