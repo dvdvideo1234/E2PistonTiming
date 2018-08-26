@@ -1,0 +1,27 @@
+[h1] Description [/h1]
+This addon adds faster custom prop engines piston generation support for wire Expression 2
+
+[h1] Feature List [/h1]
+[list]
+ [*] Simple entity crankshaft based coding
+ [*] Pistons are created once during initialization
+ [*] Timings tracking is done by dedicated function assignment
+ [*] Coding effective environment API
+ [*] The piston count and total number is supported
+ [*] The pistons can be monitored/removed easily
+[/list]
+
+For detailed manual, please refer to readme.md
+
+Readme: https://github.com/dvdvideo1234/E2PistonTiming/blob/master/readme.md
+
+Git repository: https://github.com/dvdvideo1234/E2PistonTiming
+
+Report errors to: https://github.com/dvdvideo1234/E2PistonTiming/issues
+
+Re-uploading and source stealing will not be tolerated !
+Selling it is also out of option, as the open source suggests !
+
+If you want to support me and you like what I do:
+
+paypal.me/DeyanVasilev

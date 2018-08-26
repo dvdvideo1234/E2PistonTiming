@@ -1,0 +1,6 @@
+"AddonInfo"
+{
+  "name" "Piston Timing E2"
+  "author_name" "DVD"
+  "info" "Adds custom piston handling API to wire E2"
+}
