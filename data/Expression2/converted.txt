@@ -1,0 +1,55 @@
+@name W6 Napier Lion
+@model models/engine/crankshaft_e6.mdl
+@inputs On Pow
+@outputs RPM Ang [Shft Base]:entity T1 T2 T3 T4 T5 T6 T7 T8 T9
+@outputs [Pos]:vector
+@persist Mul [GPS]:vector [Shft Base]:entity
+@trigger 
+
+#[ Look at the back
+ 7  8  9
+ 4  5  6
+ 1  2  3
+]#
+
+if(first() || dupefinished())
+{
+    runOnTick(1)
+    Mul = 6
+    GPS = vec(-4.5, 0, 36)
+    Shft = entity()
+    Base = Shft:isConstrainedTo("axis")
+    Shft:setPistonSign(1,  120)
+    Shft:setPistonSign(2,  180)
+    Shft:setPistonSign(3, -120)
+    Shft:setPistonSign(4,    0)
+    Shft:setPistonSign(5,   60)
+    Shft:setPistonSign(6,  -60)
+}
+
+if(On){
+    Val = Pow * Mul
+    RPM = Shft:angVel():yaw()/6
+    Pos = Base:toWorld(GPS)
+    Ang = Shft:bearing(Pos)
+
+    T1 = Shft:getPiston(1, Ang) * Val
+    T2 = Shft:getPiston(2, Ang) * Val
+    T3 = Shft:getPiston(3, Ang) * Val
+    T4 = Shft:getPiston(4, Ang) * Val
+    T5 = Shft:getPiston(5, Ang) * Val
+    T6 = T1
+    T7 = T3
+    T8 = Shft:getPiston(6, Ang) * Val
+    T9 = T4
+}else{
+    T1 = 0
+    T2 = 0
+    T3 = 0
+    T4 = 0
+    T5 = 0
+    T6 = 0
+    T7 = 0
+    T8 = 0
+    T9 = 0
+}
