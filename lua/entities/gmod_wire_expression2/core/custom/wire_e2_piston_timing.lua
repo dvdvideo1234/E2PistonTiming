@@ -31,7 +31,7 @@ local function setData(oE, iD, oV)
   if(iD) then oE[sK][iD] = oV else oE[sK] = oV end; return oE
 end
 
-local function setPiston(oE, iD, nH, bW)
+local function setPistonData(oE, iD, nH, bW)
   if(not isEntity(oE)) then return nil end
   local tP = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
@@ -40,7 +40,7 @@ local function setPiston(oE, iD, nH, bW)
   return setData(oE, iD, {nH, nL, tF[iS], tobool(bW)})
 end
 
-local function getPiston(oE, iD, nB, iP)
+local function getPistonData(oE, iD, nB, iP)
   if(not isEntity(oE)) then return 0 end
   local tP = getData(oE, iD); if(not tP) then return 0 end
   if(iP) then return (tP[iP] or 0) end
@@ -49,51 +49,51 @@ local function getPiston(oE, iD, nB, iP)
 end
 
 e2function entity entity:setPistonSign(number iD, number nT)
-  return setPiston(this, iD, nT, false)
+  return setPistonData(this, iD, nT, false)
 end
 
 e2function entity entity:setPistonSign(string iD, number nT)
-  return setPiston(this, iD, nT, false)
+  return setPistonData(this, iD, nT, false)
 end
 
 e2function entity entity:setPistonWave(number iD, number nT)
-  return setPiston(this, iD, nT, true)
+  return setPistonData(this, iD, nT, true)
 end
 
 e2function entity entity:setPistonWave(string iD, number nT)
-  return setPiston(this, iD, nT, true)
+  return setPistonData(this, iD, nT, true)
 end
 
 e2function number entity:getPiston(number iD, number nB)
-  return getPiston(this, iD, nB)
+  return getPistonData(this, iD, nB)
 end
 
 e2function number entity:getPiston(string iD, number nB)
-  return getPiston(this, iD, nB)
+  return getPistonData(this, iD, nB)
 end
 
 e2function number entity:lowPiston(number iD)
-  return getPiston(this, iD, nil, 2)
+  return getPistonData(this, iD, nil, 2)
 end
 
 e2function number entity:lowPiston(string iD)
-  return getPiston(this, iD, nil, 2)
+  return getPistonData(this, iD, nil, 2)
 end
 
 e2function number entity:higPiston(number iD)
-  return getPiston(this, iD, nil, 1)
+  return getPistonData(this, iD, nil, 1)
 end
 
 e2function number entity:higPiston(string iD)
-  return getPiston(this, iD, nil, 1)
+  return getPistonData(this, iD, nil, 1)
 end
 
 e2function number entity:wavPiston(number iD)
-  return (getPiston(this, iD, nil, 4) and 1 or 0)
+  return (getPistonData(this, iD, nil, 4) and 1 or 0)
 end
 
 e2function number entity:wavPiston(string iD)
-  return (getPiston(this, iD, nil, 4) and 1 or 0)
+  return (getPistonData(this, iD, nil, 4) and 1 or 0)
 end
 
 e2function entity entity:remPiston(number iD)
