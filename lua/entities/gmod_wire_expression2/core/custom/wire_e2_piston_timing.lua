@@ -3,20 +3,12 @@ local mathSin      = math and math.sin
 local tF, nR       = {}, (math.pi / 180)
 local sK           = "wire_e2_piston_timing"
 
-tF[1] = function(R, A, B) return ((R >= A || R < B) and 1 or -1) end
-tF[2] = function(R, A, B) return ((R <= A || R > B) and -1 or 1) end
-tF[3] = function(R, A, B) return ((R <= A) and -1 or 1) end
-
 local function logStatus(...)
   print(sK..": <"..tableConcat({...}, ",")..">")
 end
 
 local function getAngNorm(nA)
   return ((nA + 180) % 360 - 180)
-end
-
-local function getWave(nB, nT)
-  return mathSin(nR * getAngNorm(nB - nT))
 end
 
 local function isEntity(oE)
@@ -31,37 +23,48 @@ local function setData(oE, iD, oV)
   if(iD) then oE[sK][iD] = oV else oE[sK] = oV end; return oE
 end
 
-local function setPistonData(oE, iD, nH, bW)
+-------- General piston sign definitions -------- Sign mode [0]
+tF[1] = function(R, A, B) return ((R >= A || R < B) and 1 or -1) end
+tF[2] = function(R, A, B) return ((R <= A || R > B) and -1 or 1) end
+tF[3] = function(R, A, B) return ((R <= A) and -1 or 1) end
+
+-------- Dedicated mode definitions --------
+tF[4] = function(R, A, B) return mathSin(nR * getAngNorm(R - A)) end -- Wave mode [1]
+
+local function setPistonData(oE, iD, nH, nM)
   if(not isEntity(oE)) then return nil end
   local tP = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
   local nL, iS = getAngNorm(nH + 180), 0
-  if(nH > 0) then iS = 1 elseif(nH < 0) then iS = 2 else iS = 3 end
-  return setData(oE, iD, {nH, nL, tF[iS], tobool(bW)})
+  if(nM) then iS = (nM + 3) else   -- Dedicated modes
+    if    (nH > 0) then iS = 1     -- Sign definitions (+)
+    elseif(nH < 0) then iS = 2     -- Sign definitions (-)
+    else                iS = 3 end -- Sign definitions (0)
+  end
+  return setData(oE, iD, {nH, nL, tF[iS], (nM or 0)})
 end
 
 local function getPistonData(oE, iD, nB, iP)
   if(not isEntity(oE)) then return 0 end
   local tP = getData(oE, iD); if(not tP) then return 0 end
   if(iP) then return (tP[iP] or 0) end
-  if(tP[4]) then return getWave(nB, tP[1]) end
   return tP[3](nB, tP[1], tP[2])
 end
 
 e2function entity entity:setPistonSign(number iD, number nT)
-  return setPistonData(this, iD, nT, false)
+  return setPistonData(this, iD, nT, nil)
 end
 
 e2function entity entity:setPistonSign(string iD, number nT)
-  return setPistonData(this, iD, nT, false)
+  return setPistonData(this, iD, nT, nil)
 end
 
 e2function entity entity:setPistonWave(number iD, number nT)
-  return setPistonData(this, iD, nT, true)
+  return setPistonData(this, iD, nT, 1)
 end
 
 e2function entity entity:setPistonWave(string iD, number nT)
-  return setPistonData(this, iD, nT, true)
+  return setPistonData(this, iD, nT, 1)
 end
 
 e2function number entity:getPiston(number iD, number nB)
@@ -88,12 +91,20 @@ e2function number entity:higPiston(string iD)
   return getPistonData(this, iD, nil, 1)
 end
 
-e2function number entity:wavPiston(number iD)
-  return (getPistonData(this, iD, nil, 4) and 1 or 0)
+e2function number entity:isWavePiston(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
 end
 
-e2function number entity:wavPiston(string iD)
-  return (getPistonData(this, iD, nil, 4) and 1 or 0)
+e2function number entity:isSignPiston(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
+end
+
+e2function number entity:isSignPiston(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 0) and 1 or 0)
+end
+
+e2function number entity:isWavePiston(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 0) and 1 or 0)
 end
 
 e2function entity entity:remPiston(number iD)
