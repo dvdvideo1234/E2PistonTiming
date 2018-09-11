@@ -1,54 +1,89 @@
 local tableConcat  = table and table.concat
+local mathSqrt     = math and math.sqrt
 local mathSin      = math and math.sin
-local tF, nR       = {}, (math.pi / 180)
-local sK           = "wire_e2_piston_timing"
+local tF, nC       = {}, (math.pi / 180)
+local gsKey        = "wire_e2_piston_timing"
 
 local function logStatus(...)
-  print(sK..": <"..tableConcat({...}, ",")..">")
+  print(gsKey..": <"..tableConcat({...}, ",")..">")
 end
 
 local function getAngNorm(nA)
   return ((nA + 180) % 360 - 180)
 end
 
+function getNormVector(tV) local nN = 0
+  for iD = 1, 3 do tV[iD] = (tV[iD] or 0); nN = (nN + tV[iD]^2) end
+  nN = mathSqrt(nN); for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
+end
+
 local function isEntity(oE)
   return (oE and oE:IsValid())
 end
 
-local function getData(oE, iD) local tP = oE[sK]
+local function getData(oE, iD) local tP = oE[gsKey]
   return (tP and (iD and tP[iD] or tP) or nil)
 end
 
 local function setData(oE, iD, oV)
-  if(iD) then oE[sK][iD] = oV else oE[sK] = oV end; return oE
+  if(iD) then oE[gsKey][iD] = oV else oE[gsKey] = oV end; return oE
 end
 
--------- General piston sign definitions -------- Sign mode [0]
-tF[1] = function(R, A, B) return ((R >= A || R < B) and 1 or -1) end
-tF[2] = function(R, A, B) return ((R <= A || R > B) and -1 or 1) end
-tF[3] = function(R, A, B) return ((R <= A) and -1 or 1) end
+local function getCross(tR, tH, tA, oB)
+  if(not isEntity(oB)) then return 0 end
+  local aB = oB:GetAngles() -- Needed for rotations
+  local vR = Vector(tR[1], tR[2], tR[3]); vR:Normalize()
+  local vH = Vector(tH[1], tH[2], tH[3]); vH:Rotate(aB)
+  local vA = Vector(tA[1], tA[2], tA[3]); vA:Rotate(aB)
+  return vH:Cross(vR):Dot(vA)
+end
 
--------- Dedicated mode definitions --------
-tF[4] = function(R, A, B) return mathSin(nR * getAngNorm(R - A)) end -- Wave mode [1]
+-------- General piston sign routine -------- Sign mode [0]
+tF[1] = function(R, H, L) return ((R >= H || R < L) and 1 or -1) end
+tF[2] = function(R, H, L) return ((R <= H || R > L) and -1 or 1) end
+tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
 
-local function setPistonData(oE, iD, nH, nM)
+-------- Dedicated mode routines --------
+-- Wave  mode [1]
+tF[4] = function(R, H, L)
+  return mathSin(nC * getAngNorm(R - A))
+end
+-- Cross product mode [2]
+tF[5] = function(R, H, L, M, B, A)
+  return getCross(R, H, A, B)
+end
+-- Cross product sign mode [3]
+tF[6] = function(R, H, L, M, B, A)
+  local nC = getCross(R, H, A, B)
+  return (((nC > 0) and 1) or ((nC < 0) and -1) or 0)
+end
+
+local function setPistonData(oE, iD, oT, nM, oB, oA)
   if(not isEntity(oE)) then return nil end
   local tP = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
-  local nL, iS = getAngNorm(nH + 180), 0
-  if(nM) then iS = (nM + 3) else   -- Dedicated modes
-    if    (nH > 0) then iS = 1     -- Sign definitions (+)
-    elseif(nH < 0) then iS = 2     -- Sign definitions (-)
-    else                iS = 3 end -- Sign definitions (0)
+  local vL, vH, vA, iS
+  if(nM) then iS = (nM + 3) -- Dedicated modes
+    if(nM == 1) then -- Sine wave mode [1]
+      vH = oT; vL = getAngNorm(vH + 180)
+    elseif(nM == 2 or nM == 3) then -- Cross product vector mode [2],[3]
+      vH = getNormVector({ oT[1], oT[2], oT[3]})
+      vL = getNormVector({-oT[1],-oT[2],-oT[3]})
+      vA = getNormVector({ oA[1], oA[2], oA[3]})
+    end
+  else vH = oT; vL = getAngNorm(vH + 180)
+    if    (vH > 0) then iS = 1     -- Sign definitions (+)
+    elseif(vH < 0) then iS = 2     -- Sign definitions (-)
+    else --[[ Zero R ]] iS = 3 end -- Sign definitions (0)
   end
-  return setData(oE, iD, {nH, nL, tF[iS], (nM or 0)})
+  return setData(oE, iD, {tF[iS], vH, vL, (nM or 0), oB, vA})
 end
 
-local function getPistonData(oE, iD, nB, iP)
+local function getPistonData(oE, iD, vR, iP)
   if(not isEntity(oE)) then return 0 end
   local tP = getData(oE, iD); if(not tP) then return 0 end
   if(iP) then return (tP[iP] or 0) end
-  return tP[3](nB, tP[1], tP[2])
+  return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
 end
 
 e2function entity entity:setPistonSign(number iD, number nT)
@@ -67,20 +102,36 @@ e2function entity entity:setPistonWave(string iD, number nT)
   return setPistonData(this, iD, nT, 1)
 end
 
-e2function number entity:getPiston(number iD, number nB)
-  return getPistonData(this, iD, nB)
+e2function entity entity:setPistonCrossWave(number iD, vector vT, entity oB, vector vA)
+  return setPistonData(this, iD, vT, 2, oB, vA)
 end
 
-e2function number entity:getPiston(string iD, number nB)
-  return getPistonData(this, iD, nB)
+e2function entity entity:setPistonCrossWave(string iD, vector vT, entity oB, vector vA)
+  return setPistonData(this, iD, vT, 2, oB, vA)
 end
 
-e2function number entity:lowPiston(number iD)
-  return getPistonData(this, iD, nil, 2)
+e2function entity entity:setPistonCrossSign(number iD, vector vT, entity oB, vector vA)
+  return setPistonData(this, iD, vT, 3, oB, vA)
 end
 
-e2function number entity:lowPiston(string iD)
-  return getPistonData(this, iD, nil, 2)
+e2function entity entity:setPistonCrossSign(string iD, vector vT, entity oB, vector vA)
+  return setPistonData(this, iD, vT, 3, oB, vA)
+end
+
+e2function number entity:getPiston(number iD, number nR)
+  return getPistonData(this, iD, nR)
+end
+
+e2function number entity:getPiston(string iD, number nR)
+  return getPistonData(this, iD, nR)
+end
+
+e2function number entity:getPiston(number iD, vector vR)
+  return getPistonData(this, iD, vR)
+end
+
+e2function number entity:getPiston(string iD, vector vR)
+  return getPistonData(this, iD, vR)
 end
 
 e2function number entity:higPiston(number iD)
@@ -91,20 +142,64 @@ e2function number entity:higPiston(string iD)
   return getPistonData(this, iD, nil, 1)
 end
 
-e2function number entity:isWavePiston(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
+e2function number entity:lowPiston(number iD)
+  return getPistonData(this, iD, nil, 2)
 end
 
-e2function number entity:isSignPiston(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
+e2function number entity:lowPiston(string iD)
+  return getPistonData(this, iD, nil, 2)
 end
 
-e2function number entity:isSignPiston(number iD)
+e2function vector entity:higPiston(number iD)
+  return getPistonData(this, iD, nil, 1)
+end
+
+e2function vector entity:higPiston(string iD)
+  return getPistonData(this, iD, nil, 1)
+end
+
+e2function vector entity:lowPiston(number iD)
+  return getPistonData(this, iD, nil, 2)
+end
+
+e2function vector entity:lowPiston(string iD)
+  return getPistonData(this, iD, nil, 2)
+end
+
+e2function number entity:isPistonSign(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 0) and 1 or 0)
 end
 
-e2function number entity:isWavePiston(string iD)
+e2function number entity:isPistonSign(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 0) and 1 or 0)
+end
+
+e2function number entity:isPistonWave(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
+end
+
+e2function number entity:isPistonWave(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
+end
+
+e2function number entity:isPistonCrossWave(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 2) and 1 or 0)
+end
+
+e2function number entity:isPistonCrossWave(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 2) and 1 or 0)
+end
+
+e2function number entity:isPistonCrossSign(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
+end
+
+e2function number entity:isPistonCrossSign(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
+end
+
+e2function entity entity:getPistonBase(string iD)
+  return getPistonData(this, iD, nil, 6)
 end
 
 e2function entity entity:remPiston(number iD)
