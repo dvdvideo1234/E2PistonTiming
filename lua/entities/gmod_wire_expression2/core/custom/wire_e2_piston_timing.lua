@@ -211,20 +211,20 @@ e2function number entity:isPistonSignX(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
 end
 
-e2function entity entity:getPistonBase(number iD)
-  return getPistonData(this, iD, nil, 6)
-end
-
-e2function entity entity:getPistonBase(string iD)
-  return getPistonData(this, iD, nil, 6)
-end
-
 e2function vector entity:getPistonAxis(number iD)
   return getVectorCopy(getPistonData(this, iD, nil, 5))
 end
 
 e2function vector entity:getPistonAxis(string iD)
   return getVectorCopy(getPistonData(this, iD, nil, 5))
+end
+
+e2function entity entity:getPistonBase(number iD)
+  return getPistonData(this, iD, nil, 6)
+end
+
+e2function entity entity:getPistonBase(string iD)
+  return getPistonData(this, iD, nil, 6)
 end
 
 e2function entity entity:remPiston(number iD)
