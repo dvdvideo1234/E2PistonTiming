@@ -13,6 +13,10 @@ local function getAngNorm(nA)
   return ((nA + 180) % 360 - 180)
 end
 
+local function getSign(nN)
+  return (((nN > 0) and 1) or ((nN < 0) and -1) or 0)
+end
+
 local function getVectorCopy(vV)
   return (vV and {vV[1], vV[2], vV[3]} or {0,0,0})
 end
@@ -59,8 +63,7 @@ tF[5] = function(R, H, L, M, A, B)
 end
 -- Cross product sign mode [3]
 tF[6] = function(R, H, L, M, A, B)
-  local nC = getCross(R, H, A, B)
-  return (((nC > 0) and 1) or ((nC < 0) and -1) or 0)
+  getSign(getCross(R, H, A, B))
 end
 
 --[[
