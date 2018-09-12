@@ -99,35 +99,35 @@ local function getPistonData(oE, iD, vR, iP)
   return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
 end
 
-e2function entity entity:setPistonSignN(number iD, number nT)
+e2function entity entity:setPistonSign(number iD, number nT)
   return setPistonData(this, iD, nT, nil)
 end
 
-e2function entity entity:setPistonSignN(string iD, number nT)
+e2function entity entity:setPistonSign(string iD, number nT)
   return setPistonData(this, iD, nT, nil)
 end
 
-e2function entity entity:setPistonWaveN(number iD, number nT)
+e2function entity entity:setPistonWave(number iD, number nT)
   return setPistonData(this, iD, nT, 1)
 end
 
-e2function entity entity:setPistonWaveN(string iD, number nT)
+e2function entity entity:setPistonWave(string iD, number nT)
   return setPistonData(this, iD, nT, 1)
 end
 
-e2function entity entity:setPistonWaveV(number iD, vector vT, vector vA, entity oB)
+e2function entity entity:setPistonWaveX(number iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 2, vA, oB)
 end
 
-e2function entity entity:setPistonWaveV(string iD, vector vT, vector vA, entity oB)
+e2function entity entity:setPistonWaveX(string iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 2, vA, oB)
 end
 
-e2function entity entity:setPistonSignV(number iD, vector vT, vector vA, entity oB)
+e2function entity entity:setPistonSignX(number iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 3, vA, oB)
 end
 
-e2function entity entity:setPistonSignV(string iD, vector vT, vector vA, entity oB)
+e2function entity entity:setPistonSignX(string iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 3, vA, oB)
 end
 
@@ -179,35 +179,35 @@ e2function vector entity:getMinPiston(string iD)
   return getVectorCopy(getPistonData(this, iD, nil, 2))
 end
 
-e2function number entity:isPistonSignN(number iD)
+e2function number entity:isPistonSign(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 0) and 1 or 0)
 end
 
-e2function number entity:isPistonSignN(string iD)
+e2function number entity:isPistonSign(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 0) and 1 or 0)
 end
 
-e2function number entity:isPistonWaveN(number iD)
+e2function number entity:isPistonWave(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
 end
 
-e2function number entity:isPistonWaveN(string iD)
+e2function number entity:isPistonWave(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
 end
 
-e2function number entity:isPistonWaveV(number iD)
+e2function number entity:isPistonWaveX(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 2) and 1 or 0)
 end
 
-e2function number entity:isPistonWaveV(string iD)
+e2function number entity:isPistonWaveX(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 2) and 1 or 0)
 end
 
-e2function number entity:isPistonSignV(number iD)
+e2function number entity:isPistonSignX(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
 end
 
-e2function number entity:isPistonSignV(string iD)
+e2function number entity:isPistonSignX(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
 end
 
