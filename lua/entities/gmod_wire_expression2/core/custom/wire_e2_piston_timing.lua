@@ -55,7 +55,7 @@ tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
 -------- Dedicated mode routines --------
 -- Wave  mode [1]
 tF[4] = function(R, H, L)
-  return mathSin(nC * getAngNorm(R - A))
+  return mathSin(nC * getAngNorm(R - H))
 end
 -- Cross product mode [2]
 tF[5] = function(R, H, L, M, A, B)
@@ -64,6 +64,10 @@ end
 -- Cross product sign mode [3]
 tF[6] = function(R, H, L, M, A, B)
   getSign(getCross(R, H, A, B))
+end
+-- Direct linear force mode [4]
+tF[7] = function(R, H, L)
+  return (getAngNorm(R - H) / 180)
 end
 
 --[[
@@ -80,9 +84,9 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
     setData(oE, nil, {}); tP = getData(oE) end
   local vL, vH, vA, iS
   if(nM) then iS = (nM + 3) -- Dedicated modes
-    if(nM == 1) then -- Sine wave mode [1]
+    if(nM == 1 or nM == 4) then -- Sine [1] line [4] (number)
       vH = oT; vL = getAngNorm(vH + 180)
-    elseif(nM == 2 or nM == 3) then -- Cross product vector mode [2],[3]
+    elseif(nM == 2 or nM == 3) then -- Cross product [2],[3] (vector)
       vH = getNormVector({ oT[1], oT[2], oT[3]})
       vL = getNormVector({-oT[1],-oT[2],-oT[3]})
       vA = getNormVector({ oA[1], oA[2], oA[3]})
@@ -132,6 +136,14 @@ end
 
 e2function entity entity:setPistonSignX(string iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 3, vA, oB)
+end
+
+e2function entity entity:setPistonLine(number iD, number nT)
+  return setPistonData(this, iD, nT, 4)
+end
+
+e2function entity entity:setPistonLine(string iD, number nT)
+  return setPistonData(this, iD, nT, 4)
 end
 
 e2function number entity:getPiston(number iD, number nR)
