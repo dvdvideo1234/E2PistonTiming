@@ -2,7 +2,7 @@ local tableConcat  = table and table.concat
 local tableCopy    = table and table.Copy
 local mathSqrt     = math and math.sqrt
 local mathSin      = math and math.sin
-local tF, nC       = {}, (math.pi / 180)
+local tF, gnR2D    = {}, (math.pi / 180)
 local gsKey        = "wire_e2_piston_timing"
 
 local function logStatus(...)
@@ -47,37 +47,31 @@ local function getCross(tR, tH, tA, oB)
   return vH:Cross(vR):Dot(vA)
 end
 
--------- General piston sign routine -------- Sign mode [0]
+-------- General piston sign routine -------- Sign mode [0,nil]
 tF[1] = function(R, H, L) return ((R >= H || R < L) and 1 or -1) end
 tF[2] = function(R, H, L) return ((R <= H || R > L) and -1 or 1) end
 tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
 
 -------- Dedicated mode routines --------
 -- Wave  mode [1]
-tF[4] = function(R, H, L)
-  return mathSin(nC * getAngNorm(R - H))
-end
+tF[4] = function(R, H) return mathSin(gnR2D * getAngNorm(R - H)) end
 -- Cross product mode [2]
-tF[5] = function(R, H, L, M, A, B)
-  return getCross(R, H, A, B)
-end
+tF[5] = function(R, H, L, M, A, B) return getCross(R, H, A, B) end
 -- Cross product sign mode [3]
-tF[6] = function(R, H, L, M, A, B)
-  getSign(getCross(R, H, A, B))
-end
+tF[6] = function(R, H, L, M, A, B) return getSign(getCross(R, H, A, B)) end
 -- Direct linear force mode [4]
-tF[7] = function(R, H, L)
-  return (getAngNorm(R - H) / 180)
-end
+tF[7] = function(R, H) local nN = getAngNorm(R - H)
+  return (((math.abs(nN) > 90) and -getAngNorm(nN + 180) or nN) / 90) end
 
 --[[
- * oE --> Entity of the E2 itself (entity)
- * iD --> Key to store the date under (number, string)
- * oT --> Top location of the piston (number, string)
- * nM --> Operational mode on initialization (number)
- * oA --> Engine rotational axis relative to base prop (vector)
- * oB --> Engine base prop that the shaft is axised (entity)
-]] 
+ * oE (entity)         --> Entity of the E2 itself
+ * iD (number, string) --> Key to store the data by
+ * oT (number, vector) --> Top location of the piston in degrees or
+                           local direction vector relative to the base prop
+ * nM (number)         --> Operational mode on initialization
+ * oA (vector)         --> Engine rotational axis relative to the base prop
+ * oB (entity)         --> Engine base prop that the shaft is axised
+]]
 local function setPistonData(oE, iD, oT, nM, oA, oB)
   if(not isEntity(oE)) then return nil end
   local tP = getData(oE); if(not tP) then
@@ -107,11 +101,11 @@ local function getPistonData(oE, iD, vR, iP)
 end
 
 e2function entity entity:setPistonSign(number iD, number nT)
-  return setPistonData(this, iD, nT, nil)
+  return setPistonData(this, iD, nT)
 end
 
 e2function entity entity:setPistonSign(string iD, number nT)
-  return setPistonData(this, iD, nT, nil)
+  return setPistonData(this, iD, nT)
 end
 
 e2function entity entity:setPistonWave(number iD, number nT)
