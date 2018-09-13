@@ -1,0 +1,40 @@
+@name i2 FWD
+@inputs GPS:vector On Pow
+@outputs RPM BER GPS:vector T1
+@persist Mul [Chip Base]:entity [VBER XBER]:vector
+@trigger 
+
+#  T1
+
+if(first() || dupefinished())
+{
+    runOnTick(1)
+    Chip = entity()
+    Base = Chip:isConstrainedTo("axis")
+    Mul = -5
+    # Wave / Sign / Ramp
+    # Chip:setPistonSign(1, 55.306)
+    # Chip:setPistonWave(1, 55.306)
+    Chip:setPistonRamp(1, 55.306)
+    
+    # WaveX / SignX ( Cross product )
+    # VBER = vec(0.601048110939,-0.79921284295,0)
+    # Chip:setPistonSignX(1,vec(-1,0,0),vec(0,1,0),Base)
+    # Chip:setPistonWaveX(1,vec(-1,0,0),vec(0,1,0),Base)
+}
+
+if(On){
+    Val = Pow * Mul
+    RPM = Chip:angVel():yaw()/6
+    BER = Chip:bearing(GPS)
+
+    
+    # Wave / Sign / Ramp
+    T1 = Chip:getPiston(1, BER) * Val
+    
+    # WaveX / SignX ( Cross product )
+    # XBER = VBER:rotate(Chip:angles())
+    # T1 = Chip:getPiston(1, XBER) * Val  
+}else{
+    T1 = 0
+}
