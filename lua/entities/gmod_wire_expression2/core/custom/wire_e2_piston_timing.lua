@@ -59,7 +59,7 @@ tF[4] = function(R, H) return mathSin(gnR2D * getAngNorm(R - H)) end
 tF[5] = function(R, H, L, M, A, B) return getCross(R, H, A, B) end
 -- Cross product sign mode [3]
 tF[6] = function(R, H, L, M, A, B) return getSign(getCross(R, H, A, B)) end
--- Direct linear force mode [4]
+-- Direct ramp force mode [4]
 tF[7] = function(R, H) local nN = getAngNorm(R - H)
   return (((math.abs(nN) > 90) and -getAngNorm(nN + 180) or nN) / 90) end
 
@@ -69,7 +69,8 @@ tF[7] = function(R, H) local nN = getAngNorm(R - H)
  * oT (number, vector) --> Top location of the piston in degrees or
                            local direction vector relative to the base prop
  * nM (number)         --> Operational mode on initialization
- * oA (vector)         --> Engine rotational axis relative to the base prop
+ * oA (vector)         --> Engine rotational axis local direction
+                           vector relative to the base prop
  * oB (entity)         --> Engine base prop that the shaft is axised
 ]]
 local function setPistonData(oE, iD, oT, nM, oA, oB)
@@ -132,11 +133,11 @@ e2function entity entity:setPistonSignX(string iD, vector vT, vector vA, entity 
   return setPistonData(this, iD, vT, 3, vA, oB)
 end
 
-e2function entity entity:setPistonLine(number iD, number nT)
+e2function entity entity:setPistonRamp(number iD, number nT)
   return setPistonData(this, iD, nT, 4)
 end
 
-e2function entity entity:setPistonLine(string iD, number nT)
+e2function entity entity:setPistonRamp(string iD, number nT)
   return setPistonData(this, iD, nT, 4)
 end
 
@@ -218,6 +219,14 @@ end
 
 e2function number entity:isPistonSignX(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
+end
+
+e2function number entity:isPistonRamp(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 4) and 1 or 0)
+end
+
+e2function number entity:isPistonRamp(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 4) and 1 or 0)
 end
 
 e2function vector entity:getPistonAxis(number iD)
