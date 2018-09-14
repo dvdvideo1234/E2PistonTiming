@@ -101,178 +101,218 @@ local function getPistonData(oE, iD, vR, iP)
   return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonSign(number iD, number nT)
   return setPistonData(this, iD, nT)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonSign(string iD, number nT)
   return setPistonData(this, iD, nT)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonWave(number iD, number nT)
   return setPistonData(this, iD, nT, 1)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonWave(string iD, number nT)
   return setPistonData(this, iD, nT, 1)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonWaveX(number iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 2, vA, oB)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonWaveX(string iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 2, vA, oB)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonSignX(number iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 3, vA, oB)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonSignX(string iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 3, vA, oB)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonRamp(number iD, number nT)
   return setPistonData(this, iD, nT, 4)
 end
 
+__e2setcost(20)
 e2function entity entity:setPistonRamp(string iD, number nT)
   return setPistonData(this, iD, nT, 4)
 end
 
+__e2setcost(5)
 e2function number entity:getPiston(number iD, number nR)
   return getPistonData(this, iD, nR)
 end
 
+__e2setcost(5)
 e2function number entity:getPiston(string iD, number nR)
   return getPistonData(this, iD, nR)
 end
 
+__e2setcost(8)
 e2function number entity:getPiston(number iD, vector vR)
   return getPistonData(this, iD, vR)
 end
 
+__e2setcost(8)
 e2function number entity:getPiston(string iD, vector vR)
   return getPistonData(this, iD, vR)
 end
 
+__e2setcost(5)
 e2function number entity:getMaxPiston(number iD)
   return getPistonData(this, iD, nil, 1)
 end
 
+__e2setcost(5)
 e2function number entity:getMaxPiston(string iD)
   return getPistonData(this, iD, nil, 1)
 end
 
+__e2setcost(5)
 e2function number entity:getMinPiston(number iD)
   return getPistonData(this, iD, nil, 2)
 end
 
+__e2setcost(5)
 e2function number entity:getMinPiston(string iD)
   return getPistonData(this, iD, nil, 2)
 end
 
+__e2setcost(5)
 e2function vector entity:getMaxPiston(number iD)
   return getVectorCopy(getPistonData(this, iD, nil, 1))
 end
 
+__e2setcost(5)
 e2function vector entity:getMaxPiston(string iD)
   return getVectorCopy(getPistonData(this, iD, nil, 1))
 end
 
+__e2setcost(5)
 e2function vector entity:getMinPiston(number iD)
   return getVectorCopy(getPistonData(this, iD, nil, 2))
 end
 
+__e2setcost(5)
 e2function vector entity:getMinPiston(string iD)
   return getVectorCopy(getPistonData(this, iD, nil, 2))
 end
 
+__e2setcost(2)
 e2function number entity:isPistonSign(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 0) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonSign(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 0) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonWave(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonWave(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonWaveX(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 2) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonWaveX(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 2) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonSignX(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonSignX(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonRamp(number iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 4) and 1 or 0)
 end
 
+__e2setcost(2)
 e2function number entity:isPistonRamp(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 4) and 1 or 0)
 end
 
+__e2setcost(5)
 e2function vector entity:getPistonAxis(number iD)
   return getVectorCopy(getPistonData(this, iD, nil, 5))
 end
 
+__e2setcost(5)
 e2function vector entity:getPistonAxis(string iD)
   return getVectorCopy(getPistonData(this, iD, nil, 5))
 end
 
+__e2setcost(2)
 e2function entity entity:getPistonBase(number iD)
   return getPistonData(this, iD, nil, 6)
 end
 
+__e2setcost(2)
 e2function entity entity:getPistonBase(string iD)
   return getPistonData(this, iD, nil, 6)
 end
 
+__e2setcost(5)
 e2function entity entity:remPiston(number iD)
   if(not isEntity(this)) then return nil end
   local tP = getData(this); if(not tP) then return nil end
   return setData(this, iD, nil)
 end
 
+__e2setcost(5)
 e2function entity entity:remPiston(string iD)
   if(not isEntity(this)) then return nil end
   local tP = getData(this); if(not tP) then return nil end
   return setData(this, iD, nil)
 end
 
+__e2setcost(5)
 e2function entity entity:clrPiston()
   if(not isEntity(this)) then return nil end
   if(not getData(this)) then return nil end
   return setData(this, nil, nil)
 end
 
+__e2setcost(10)
 e2function number entity:cntPiston()
   if(not isEntity(this)) then return 0 end
   local tP = getData(this); if(not tP) then return 0 end
   return #tP
 end
 
+__e2setcost(15)
 e2function number entity:allPiston()
   if(not isEntity(this)) then return 0 end
   local tP = getData(this); if(not tP) then return 0 end
   local iP = 0; for key, val in pairs(tP) do iP = iP + 1 end
   return iP
 end
-
