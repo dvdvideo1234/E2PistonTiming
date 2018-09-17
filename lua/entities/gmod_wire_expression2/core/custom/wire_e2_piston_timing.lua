@@ -2,6 +2,7 @@ local tableConcat  = table and table.concat
 local tableCopy    = table and table.Copy
 local mathSqrt     = math and math.sqrt
 local mathSin      = math and math.sin
+local mathAbs      = math and math.abs
 local tF, gnR2D    = {}, (math.pi / 180)
 local gsKey        = "wire_e2_piston_timing"
 
@@ -61,7 +62,7 @@ tF[5] = function(R, H, L, M, A, B) return getCross(R, H, A, B) end
 tF[6] = function(R, H, L, M, A, B) return getSign(getCross(R, H, A, B)) end
 -- Direct ramp force mode [4]
 tF[7] = function(R, H) local nN = getAngNorm(R - H)
-  return (((math.abs(nN) > 90) and -getAngNorm(nN + 180) or nN) / 90) end
+  return (((mathAbs(nN) > 90) and -getAngNorm(nN + 180) or nN) / 90) end
 
 --[[
  * oE (entity)         --> Entity of the E2 itself
