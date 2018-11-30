@@ -10,12 +10,20 @@ local function logStatus(...)
   print(gsKey..": <"..tableConcat({...}, ",")..">")
 end
 
+local function logError(...)
+  error(gsKey..": <"..tableConcat({...}, ",")..">")
+end
+
 local function getAngNorm(nA)
   return ((nA + 180) % 360 - 180)
 end
 
 local function getSign(nN)
   return (((nN > 0) and 1) or ((nN < 0) and -1) or 0)
+end
+
+local function isHere(aV)
+  return (aV ~= nil)
 end
 
 local function getVectorCopy(vV)
@@ -36,7 +44,9 @@ local function getData(oE, iD) local tP = oE[gsKey]
 end
 
 local function setData(oE, iD, oV)
-  if(iD) then oE[gsKey][iD] = oV else oE[gsKey] = oV end; return oE
+  if(iD) then oE[gsKey][iD] = oV else oE[gsKey] = oV end
+  if(not isHere(oV)) then collectgarbage(); end
+  return oE -- Return crankshaft entity
 end
 
 local function getCross(tR, tH, tA, oB)
