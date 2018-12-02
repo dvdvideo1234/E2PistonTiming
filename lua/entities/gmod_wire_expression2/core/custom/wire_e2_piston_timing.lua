@@ -44,7 +44,7 @@ local function getData(oE, iD) local tP = oE[gsKey]
 end
 
 local function setData(oE, iD, oV)
-  if(iD) then oE[gsKey][iD] = oV else oE[gsKey] = oV end
+  if(isHere(iD)) then oE[gsKey][iD] = oV else oE[gsKey] = oV end
   if(not isHere(oV)) then collectgarbage(); end
   return oE -- Return crankshaft entity
 end
