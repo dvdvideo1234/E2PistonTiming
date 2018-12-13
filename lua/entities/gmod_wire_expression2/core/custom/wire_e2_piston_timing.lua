@@ -3,7 +3,7 @@ local tableCopy    = table and table.Copy
 local mathSqrt     = math and math.sqrt
 local mathSin      = math and math.sin
 local mathAbs      = math and math.abs
-local tF, gnR2D    = {}, (math.pi / 180)
+local tF, gnD2R    = {}, (math.pi / 180)
 local gsKey        = "wire_e2_piston_timing"
 
 local function logStatus(...)
@@ -30,7 +30,7 @@ local function getVectorCopy(vV)
   return (vV and {vV[1], vV[2], vV[3]} or {0,0,0})
 end
 
-local function getNormVector(tV) local nN = 0
+local function getVectorNorm(tV) local nN = 0
   for iD = 1, 3 do tV[iD] = (tV[iD] or 0); nN = (nN + tV[iD]^2) end
   nN = mathSqrt(nN); for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
 end
@@ -58,31 +58,33 @@ local function getCross(tR, tH, tA, oB)
   return vH:Cross(vR):Dot(vA)
 end
 
--------- General piston sign routine -------- Sign mode [0,nil]
+-------- General piston sign routine -------- Sign mode [nM=nil]
 tF[1] = function(R, H, L) return ((R >= H || R < L) and 1 or -1) end
 tF[2] = function(R, H, L) return ((R <= H || R > L) and -1 or 1) end
 tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
 
 -------- Dedicated mode routines --------
--- Wave  mode [1]
-tF[4] = function(R, H) return mathSin(gnR2D * getAngNorm(R - H)) end
--- Cross product mode [2]
+-- Wave  mode [nM=1]
+tF[4] = function(R, H) return mathSin(gnD2R * getAngNorm(R - H)) end
+-- Cross product mode [nM=2]
 tF[5] = function(R, H, L, M, A, B) return getCross(R, H, A, B) end
--- Cross product sign mode [3]
+-- Cross product sign mode [nM=3]
 tF[6] = function(R, H, L, M, A, B) return getSign(getCross(R, H, A, B)) end
--- Direct ramp force mode [4]
+-- Direct ramp force mode [nM=4]
 tF[7] = function(R, H) local nN = getAngNorm(R - H)
   return (((mathAbs(nN) > 90) and -getAngNorm(nN + 180) or nN) / 90) end
 
 --[[
- * oE (entity)         --> Entity of the E2 itself
- * iD (number, string) --> Key to store the data by
+ * oE (entity)         --> Entity of the engine crankshaft. Usually the engine E2 also.
+ * iD (number, string) --> Key to store the data by. Either string or a nmber.
  * oT (number, vector) --> Top location of the piston in degrees or
-                           local direction vector relative to the base prop
- * nM (number)         --> Operational mode on initialization
- * oA (vector)         --> Engine rotational axis local direction
-                           vector relative to the base prop
- * oB (entity)         --> Engine base prop that the shaft is axised
+                           local direction vector relative to the base prop.
+ * nM (number)         --> Operational mode on initialization. It choses between the
+                           defined list of algorithms for obtaining the output function
+ * oA (vector)         --> Engine rotational axis local direction vector relative to the
+                           base prop used for projections
+ * oB (entity)         --> Engine base prop that the shaft is axised to and all other
+                           props are also constrained to it. Used for a coordinate reference.
 ]]
 local function setPistonData(oE, iD, oT, nM, oA, oB)
   if(not isEntity(oE)) then return nil end
@@ -93,16 +95,15 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
     if(nM == 1 or nM == 4) then -- Sine [1] line [4] (number)
       vH = oT; vL = getAngNorm(vH + 180)
     elseif(nM == 2 or nM == 3) then -- Cross product [2],[3] (vector)
-      vH = getNormVector({ oT[1], oT[2], oT[3]})
-      vL = getNormVector({-oT[1],-oT[2],-oT[3]})
-      vA = getNormVector({ oA[1], oA[2], oA[3]})
+      vH = getVectorNorm({ oT[1], oT[2], oT[3]})
+      vL = getVectorNorm({-oT[1],-oT[2],-oT[3]})
+      vA = getVectorNorm({ oA[1], oA[2], oA[3]})
     end
   else vH = oT; vL = getAngNorm(vH + 180)
     if    (vH > 0) then iS = 1     -- Sign definitions (+)
     elseif(vH < 0) then iS = 2     -- Sign definitions (-)
     else --[[ Zero R ]] iS = 3 end -- Sign definitions (0)
-  end
-  return setData(oE, iD, {tF[iS], vH, vL, (nM or 0), vA, oB})
+  end; return setData(oE, iD, {tF[iS], vH, vL, (nM or 0), vA, oB})
 end
 
 local function getPistonData(oE, iD, vR, iP)
