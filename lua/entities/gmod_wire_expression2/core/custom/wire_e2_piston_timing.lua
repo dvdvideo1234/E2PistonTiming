@@ -1,10 +1,13 @@
-local tableConcat  = table and table.concat
-local tableCopy    = table and table.Copy
-local mathSqrt     = math and math.sqrt
-local mathSin      = math and math.sin
-local mathAbs      = math and math.abs
-local tF, gnD2R    = {}, (math.pi / 180)
-local gsKey        = "wire_e2_piston_timing"
+local tableConcat = table and table.concat
+local tableCopy   = table and table.Copy
+local mathSqrt    = math and math.sqrt
+local mathSin     = math and math.sin
+local mathAbs     = math and math.abs
+local tF, gnD2R   = {}, (math.pi / 180)
+local gsKey       = "wire_e2_piston_timing"
+local gtVectors   = {TEMP = Vector()}
+local gvAxis, geBase = {0,0,0}, nil
+local gsRoll, gsHigh, gsAxis = "ROLL", "HIGH", "AXIS"
 
 local function logStatus(...)
   print(gsKey..": <"..tableConcat({...}, ",")..">")
@@ -30,7 +33,7 @@ local function getVectorCopy(vV)
   return (vV and {vV[1], vV[2], vV[3]} or {0,0,0})
 end
 
-local function getVectorNorm(tV) local nN = 0
+local function getArrayNorm(tV) local nN = 0
   for iD = 1, 3 do tV[iD] = (tV[iD] or 0); nN = (nN + tV[iD]^2) end
   nN = mathSqrt(nN); for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
 end
@@ -49,12 +52,21 @@ local function setData(oE, iD, oV)
   return oE -- Return crankshaft entity
 end
 
+local function getVector(aK, nX, nY, nZ)
+  if(not isHere(aK)) then return gtVectors.TEMP end
+  local vC = gtVectors[aK]; if(aK and not gtVectors[aK]) then
+    gtVectors[aK] = Vector(); vC = gtVectors[aK] end
+  vC.x = (tonumber(nX) or 0)
+  vC.y = (tonumber(nY) or 0)
+  vC.z = (tonumber(nZ) or 0); return vC
+end
+
 local function getCross(tR, tH, tA, oB)
   if(not isEntity(oB)) then return 0 end
   local aB = oB:GetAngles() -- Needed for rotations
-  local vR = Vector(tR[1], tR[2], tR[3]); vR:Normalize()
-  local vH = Vector(tH[1], tH[2], tH[3]); vH:Rotate(aB)
-  local vA = Vector(tA[1], tA[2], tA[3]); vA:Rotate(aB)
+  local vR = getVector(gsRoll, tR[1], tR[2], tR[3]); vR:Normalize()
+  local vH = getVector(gsHigh, tH[1], tH[2], tH[3]); vH:Rotate(aB)
+  local vA = getVector(gsAxis, tA[1], tA[2], tA[3]); vA:Rotate(aB)
   return vH:Cross(vR):Dot(vA)
 end
 
@@ -95,9 +107,9 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
     if(nM == 1 or nM == 4) then -- Sine [1] line [4] (number)
       vH = oT; vL = getAngNorm(vH + 180)
     elseif(nM == 2 or nM == 3) then -- Cross product [2],[3] (vector)
-      vH = getVectorNorm({ oT[1], oT[2], oT[3]})
-      vL = getVectorNorm({-oT[1],-oT[2],-oT[3]})
-      vA = getVectorNorm({ oA[1], oA[2], oA[3]})
+      vH = getArrayNorm({ oT[1], oT[2], oT[3]})
+      vL = getArrayNorm({-oT[1],-oT[2],-oT[3]})
+      vA = getArrayNorm({ oA[1], oA[2], oA[3]})
     end
   else vH = oT; vL = getAngNorm(vH + 180)
     if    (vH > 0) then iS = 1     -- Sign definitions (+)
@@ -111,6 +123,51 @@ local function getPistonData(oE, iD, vR, iP)
   local tP = getData(oE, iD); if(not tP) then return 0 end
   if(iP) then return (tP[iP] or 0) end
   return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonBase(entity oB)
+  if(oB and oB:IsValid()) then geBase = oB end; return this
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonBase()
+  geBase = nil; return this
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonAxis(vector vA)
+  for iD = 1, 3 do gvAxis[iD] = vA[iD] end; return this
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonAxis(vector2 vA)
+  for iD = 1, 2 do gvAxis[iD] = vA[iD] end; gvAxis[3] = 0; return this
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonAxis(array vA)
+  for iD = 1, 3 do gvAxis[iD] = (tonumber(vA[iD]) or 0) end; return this
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonAxis(number X, number Y, number Z)
+  gvAxis[1], gvAxis[2], gvAxis[3] = X, Y, Z; return this
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonAxis(number X, number Y)
+  gvAxis[1], gvAxis[2], gvAxis[3] = X, Y, 0; return this
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonAxis(number X)
+  gvAxis[1], gvAxis[2], gvAxis[3] = X, 0, 0; return this
+end
+
+__e2setcost(1)
+e2function entity entity:putPistonAxis()
+  gvAxis[1], gvAxis[2], gvAxis[3] = 0, 0, 0; return this
 end
 
 __e2setcost(20)
@@ -134,13 +191,13 @@ e2function entity entity:setPistonWave(string iD, number nT)
 end
 
 __e2setcost(20)
-e2function entity entity:setPistonWaveX(number iD, vector vT, vector vA, entity oB)
-  return setPistonData(this, iD, vT, 2, vA, oB)
+e2function entity entity:setPistonSignX(number iD, vector vT)
+  return setPistonData(this, iD, vT, 3, gvAxis, geBase)
 end
 
 __e2setcost(20)
-e2function entity entity:setPistonWaveX(string iD, vector vT, vector vA, entity oB)
-  return setPistonData(this, iD, vT, 2, vA, oB)
+e2function entity entity:setPistonSignX(string iD, vector vT)
+  return setPistonData(this, iD, vT, 3, gvAxis, geBase)
 end
 
 __e2setcost(20)
@@ -151,6 +208,26 @@ end
 __e2setcost(20)
 e2function entity entity:setPistonSignX(string iD, vector vT, vector vA, entity oB)
   return setPistonData(this, iD, vT, 3, vA, oB)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonWaveX(number iD, vector vT)
+  return setPistonData(this, iD, vT, 2, gvAxis, geBase)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonWaveX(string iD, vector vT)
+  return setPistonData(this, iD, vT, 2, gvAxis, geBase)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonWaveX(number iD, vector vT, vector vA, entity oB)
+  return setPistonData(this, iD, vT, 2, vA, oB)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonWaveX(string iD, vector vT, vector vA, entity oB)
+  return setPistonData(this, iD, vT, 2, vA, oB)
 end
 
 __e2setcost(20)
