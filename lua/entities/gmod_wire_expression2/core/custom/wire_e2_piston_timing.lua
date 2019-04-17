@@ -70,19 +70,20 @@ local function getCross(tR, tH, tA, oB)
   return vH:Cross(vR):Dot(vA)
 end
 
--------- General piston sign routine -------- Sign mode [nM=nil]
+-------- General piston sign routine --------
+-- Sign mode [nM=nil] https://en.wikipedia.org/wiki/Square_wave
 tF[1] = function(R, H, L) return ((R >= H || R < L) and 1 or -1) end
 tF[2] = function(R, H, L) return ((R <= H || R > L) and -1 or 1) end
 tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
 
 -------- Dedicated mode routines --------
--- Wave  mode [nM=1]
+-- Wave  mode [nM=1] https://en.wikipedia.org/wiki/Sine_wave
 tF[4] = function(R, H) return mathSin(gnD2R * getAngNorm(R - H)) end
--- Cross product mode [nM=2]
+-- Cross product mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
 tF[5] = function(R, H, L, M, A, B) return getCross(R, H, A, B) end
--- Cross product sign mode [nM=3]
+-- Cross product sign mode [nM=3] https://en.wikipedia.org/wiki/Square_wave
 tF[6] = function(R, H, L, M, A, B) return getSign(getCross(R, H, A, B)) end
--- Direct ramp force mode [nM=4]
+-- Direct ramp force mode [nM=4] https://en.wikipedia.org/wiki/Triangle_wave
 tF[7] = function(R, H) local nN = getAngNorm(R - H)
   return (((mathAbs(nN) > 90) and -getAngNorm(nN + 180) or nN) / 90) end
 
@@ -105,7 +106,7 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
   local vL, vH, vA, iS
   if(nM) then iS = (nM + 3) -- Dedicated modes
     if(nM == 1 or nM == 4) then -- Sine [1] line [4] (number)
-      vH = oT; vL = getAngNorm(vH + 180)
+      vH, vL = oT, getAngNorm(oT + 180)
     elseif(nM == 2 or nM == 3) then -- Cross product [2],[3] (vector)
       vH = getArrayNorm({ oT[1], oT[2], oT[3]})
       vL = getArrayNorm({-oT[1],-oT[2],-oT[3]})
