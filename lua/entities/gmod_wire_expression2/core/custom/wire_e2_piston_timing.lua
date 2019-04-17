@@ -33,9 +33,14 @@ local function getVectorCopy(vV)
   return (vV and {vV[1], vV[2], vV[3]} or {0,0,0})
 end
 
-local function getArrayNorm(tV) local nN = 0
-  for iD = 1, 3 do tV[iD] = (tV[iD] or 0); nN = (nN + tV[iD]^2) end
-  nN = mathSqrt(nN); for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
+local function getVectorAbs(tV) local nN = 0
+  for iD = 1, 3 do nN = nN + (tV[iD] or 0)^2 end
+  return mathSqrt(nN)
+end
+
+local function getVectorNorm(tV)
+  local nN = getVectorAbs(tV)
+  for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
 end
 
 local function isEntity(oE)
@@ -108,9 +113,9 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
     if(nM == 1 or nM == 4) then -- Sine [1] line [4] (number)
       vH, vL = oT, getAngNorm(oT + 180)
     elseif(nM == 2 or nM == 3) then -- Cross product [2],[3] (vector)
-      vH = getArrayNorm({ oT[1], oT[2], oT[3]})
-      vL = getArrayNorm({-oT[1],-oT[2],-oT[3]})
-      vA = getArrayNorm({ oA[1], oA[2], oA[3]})
+      vH = getVectorNorm({ oT[1], oT[2], oT[3]})
+      vL = getVectorNorm({-oT[1],-oT[2],-oT[3]})
+      vA = getVectorNorm({ oA[1], oA[2], oA[3]})
     end
   else vH = oT; vL = getAngNorm(vH + 180)
     if    (vH > 0) then iS = 1     -- Sign definitions (+)
