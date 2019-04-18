@@ -29,17 +29,17 @@ local function isHere(aV)
   return (aV ~= nil)
 end
 
-local function getVectorCopy(vV)
+local function getWireVecCopy(vV)
   return (vV and {vV[1], vV[2], vV[3]} or {0,0,0})
 end
 
-local function getVectorAbs(tV) local nN = 0
+local function getWireVecAbs(tV) local nN = 0
   for iD = 1, 3 do nN = nN + (tV[iD] or 0)^2 end
   return mathSqrt(nN)
 end
 
-local function getVectorNorm(tV)
-  local nN = getVectorAbs(tV)
+local function getWireVecNorm(tV)
+  local nN = getWireVecAbs(tV)
   for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
 end
 
@@ -110,14 +110,14 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
     setData(oE, nil, {}); tP = getData(oE) end
   local vL, vH, vA, iS
   if(nM) then iS = (nM + 3) -- Dedicated modes
-    if(nM == 1 or nM == 4) then -- Sine [1] line [4] (number)
+    if(nM == 1 or nM == 4) then -- Sine [1] ramp [4] (number)
       vH, vL = oT, getAngNorm(oT + 180)
     elseif(nM == 2 or nM == 3) then -- Cross product [2],[3] (vector)
-      vH = getVectorNorm({ oT[1], oT[2], oT[3]})
-      vL = getVectorNorm({-oT[1],-oT[2],-oT[3]})
-      vA = getVectorNorm({ oA[1], oA[2], oA[3]})
+      vH = getWireVecNorm({ oT[1], oT[2], oT[3]})
+      vL = getWireVecNorm({-oT[1],-oT[2],-oT[3]})
+      vA = getWireVecNorm({ oA[1], oA[2], oA[3]})
     end
-  else vH = oT; vL = getAngNorm(vH + 180)
+  else vH, vL = oT, getAngNorm(oT + 180)
     if    (vH > 0) then iS = 1     -- Sign definitions (+)
     elseif(vH < 0) then iS = 2     -- Sign definitions (-)
     else --[[ Zero R ]] iS = 3 end -- Sign definitions (0)
@@ -288,22 +288,22 @@ end
 
 __e2setcost(5)
 e2function vector entity:getMaxPiston(number iD)
-  return getVectorCopy(getPistonData(this, iD, nil, 1))
+  return getWireVecCopy(getPistonData(this, iD, nil, 1))
 end
 
 __e2setcost(5)
 e2function vector entity:getMaxPiston(string iD)
-  return getVectorCopy(getPistonData(this, iD, nil, 1))
+  return getWireVecCopy(getPistonData(this, iD, nil, 1))
 end
 
 __e2setcost(5)
 e2function vector entity:getMinPiston(number iD)
-  return getVectorCopy(getPistonData(this, iD, nil, 2))
+  return getWireVecCopy(getPistonData(this, iD, nil, 2))
 end
 
 __e2setcost(5)
 e2function vector entity:getMinPiston(string iD)
-  return getVectorCopy(getPistonData(this, iD, nil, 2))
+  return getWireVecCopy(getPistonData(this, iD, nil, 2))
 end
 
 __e2setcost(2)
@@ -358,12 +358,12 @@ end
 
 __e2setcost(5)
 e2function vector entity:getPistonAxis(number iD)
-  return getVectorCopy(getPistonData(this, iD, nil, 5))
+  return getWireVecCopy(getPistonData(this, iD, nil, 5))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonAxis(string iD)
-  return getVectorCopy(getPistonData(this, iD, nil, 5))
+  return getWireVecCopy(getPistonData(this, iD, nil, 5))
 end
 
 __e2setcost(2)
