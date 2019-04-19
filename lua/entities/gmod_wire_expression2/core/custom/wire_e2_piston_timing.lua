@@ -77,8 +77,8 @@ end
 
 -------- General piston sign routine --------
 -- Sign mode [nM=nil] https://en.wikipedia.org/wiki/Square_wave
-tF[1] = function(R, H, L) return ((R >= H || R < L) and 1 or -1) end
-tF[2] = function(R, H, L) return ((R <= H || R > L) and -1 or 1) end
+tF[1] = function(R, H, L) return ((R >= H or R < L) and  1 or -1) end
+tF[2] = function(R, H, L) return ((R <= H or R > L) and -1 or  1) end
 tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
 
 -------- Dedicated mode routines --------
