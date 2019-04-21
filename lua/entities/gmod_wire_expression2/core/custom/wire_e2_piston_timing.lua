@@ -5,9 +5,8 @@ local mathSin     = math and math.sin
 local mathAbs     = math and math.abs
 local tF, gnD2R   = {}, (math.pi / 180)
 local gsKey       = "wire_e2_piston_timing"
-local gtVectors   = {TEMP = Vector()}
-local gvAxis, geBase = {0,0,0}, nil
-local gsRoll, gsHigh, gsAxis = "ROLL", "HIGH", "AXIS"
+local gvAxis, geBase = {0,0,0}, nil -- Global axis and base ntity
+local gsRoll, gsHigh, gsAxis = Vector(), Vector(), Vector()
 
 local function logStatus(...)
   print(gsKey..": <"..tableConcat({...}, ",")..">")
@@ -57,21 +56,18 @@ local function setData(oE, iD, oV)
   return oE -- Return crankshaft entity
 end
 
-local function getVector(aK, nX, nY, nZ)
-  if(not isHere(aK)) then return gtVectors.TEMP end
-  local vC = gtVectors[aK]; if(aK and not gtVectors[aK]) then
-    gtVectors[aK] = Vector(); vC = gtVectors[aK] end
-  vC.x = (tonumber(nX) or 0)
-  vC.y = (tonumber(nY) or 0)
-  vC.z = (tonumber(nZ) or 0); return vC
+local function setVector(vV, nX, nY, nZ)
+  vV.x = (tonumber(nX) or 0)
+  vV.y = (tonumber(nY) or 0)
+  vV.z = (tonumber(nZ) or 0); return vV
 end
 
 local function getCross(tR, tH, tA, oB)
   if(not isEntity(oB)) then return 0 end
   local aB = oB:GetAngles() -- Needed for rotations
-  local vR = getVector(gsRoll, tR[1], tR[2], tR[3]); vR:Normalize()
-  local vH = getVector(gsHigh, tH[1], tH[2], tH[3]); vH:Rotate(aB)
-  local vA = getVector(gsAxis, tA[1], tA[2], tA[3]); vA:Rotate(aB)
+  local vR = setVector(gsRoll, tR[1], tR[2], tR[3]); vR:Normalize()
+  local vH = setVector(gsHigh, tH[1], tH[2], tH[3]); vH:Rotate(aB)
+  local vA = setVector(gsAxis, tA[1], tA[2], tA[3]); vA:Rotate(aB)
   return vH:Cross(vR):Dot(vA)
 end
 
