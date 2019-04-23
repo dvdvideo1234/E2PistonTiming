@@ -8,6 +8,8 @@ local gsKey       = "wire_e2_piston_timing"
 local gvAxis, geBase = {0,0,0}, nil -- Global axis and base ntity
 local gsRoll, gsHigh, gsAxis = Vector(), Vector(), Vector()
 
+E2Lib.RegisterExtension(gsKey, true, "Allows E2 chips to attach pistons to the engine crankshaft props")
+
 local function logStatus(...)
   print(gsKey..": <"..tableConcat({...}, ",")..">")
 end
@@ -28,8 +30,8 @@ local function isHere(aV)
   return (aV ~= nil)
 end
 
-local function getWireVecCopy(vV)
-  return (vV and {vV[1], vV[2], vV[3]} or {0,0,0})
+local function getWireVecCopy(tV)
+  return (tV and {tV[1], tV[2], tV[3]} or {0,0,0})
 end
 
 local function getWireVecAbs(tV) local nN = 0
@@ -40,6 +42,12 @@ end
 local function getWireVecNorm(tV)
   local nN = getWireVecAbs(tV)
   for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
+end
+
+local function setWireVecXYZ(tV, nX, nY, nZ)
+  tV[1] = (tonumber(nX) or 0)
+  tV[2] = (tonumber(nY) or 0)
+  tV[3] = (tonumber(nZ) or 0); return tV
 end
 
 local function isEntity(oE)
@@ -80,7 +88,7 @@ tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
 -------- Dedicated mode routines --------
 -- Wave  mode [nM=1] https://en.wikipedia.org/wiki/Sine_wave
 tF[4] = function(R, H) return mathSin(gnD2R * getAngNorm(R - H)) end
--- Cross product mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
+-- Cross product wave mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
 tF[5] = function(R, H, L, M, A, B) return getCross(R, H, A, B) end
 -- Cross product sign mode [nM=3] https://en.wikipedia.org/wiki/Square_wave
 tF[6] = function(R, H, L, M, A, B) return getSign(getCross(R, H, A, B)) end
@@ -139,37 +147,37 @@ end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(vector vA)
-  for iD = 1, 3 do gvAxis[iD] = vA[iD] end; return this
+  setWireVecXYZ(gvAxis, vA[1], vA[2], vA[3]); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(vector2 vA)
-  for iD = 1, 2 do gvAxis[iD] = vA[iD] end; gvAxis[3] = 0; return this
+  setWireVecXYZ(gvAxis, vA[1], vA[2], 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(array vA)
-  for iD = 1, 3 do gvAxis[iD] = (tonumber(vA[iD]) or 0) end; return this
+  setWireVecXYZ(gvAxis, vA[1], vA[2], vA[3]); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X, number Y, number Z)
-  gvAxis[1], gvAxis[2], gvAxis[3] = X, Y, Z; return this
+  setWireVecXYZ(gvAxis, X, Y, Z); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X, number Y)
-  gvAxis[1], gvAxis[2], gvAxis[3] = X, Y, 0; return this
+  setWireVecXYZ(gvAxis, X, Y, 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X)
-  gvAxis[1], gvAxis[2], gvAxis[3] = X, 0, 0; return this
+  setWireVecXYZ(gvAxis, X, 0, 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis()
-  gvAxis[1], gvAxis[2], gvAxis[3] = 0, 0, 0; return this
+  setWireVecXYZ(gvAxis, 0, 0, 0); return this
 end
 
 __e2setcost(20)
