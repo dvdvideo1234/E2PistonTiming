@@ -141,7 +141,7 @@ e2function entity entity:putPistonBase(entity oB)
 end
 
 __e2setcost(1)
-e2function entity entity:putPistonBase()
+e2function entity entity:resPistonBase()
   geBase = nil; return this
 end
 
@@ -176,7 +176,7 @@ e2function entity entity:putPistonAxis(number X)
 end
 
 __e2setcost(1)
-e2function entity entity:putPistonAxis()
+e2function entity entity:resPistonAxis()
   setWireVecXYZ(gvAxis, 0, 0, 0); return this
 end
 
