@@ -3,6 +3,8 @@ local tableCopy   = table and table.Copy
 local mathSqrt    = math and math.sqrt
 local mathSin     = math and math.sin
 local mathAbs     = math and math.abs
+local outError    = error -- The function which generates error and prints it out
+local outPrint    = print -- The function that outputs a string into the console
 local tF, gnD2R   = {}, (math.pi / 180)
 local gsKey       = "wire_e2_piston_timing"
 local gvAxis, geBase = {0,0,0}, nil -- Global axis and base ntity
@@ -10,12 +12,12 @@ local gsRoll, gsHigh, gsAxis = Vector(), Vector(), Vector()
 
 E2Lib.RegisterExtension(gsKey, true, "Allows E2 chips to attach pistons to the engine crankshaft props")
 
-local function logStatus(...)
-  print(gsKey..": <"..tableConcat({...}, ",")..">")
+local function logError(sM, ...)
+  outError("Å2:"..gsKey..":"..tostring(sM)); return ...
 end
 
-local function logError(...)
-  error(gsKey..": <"..tableConcat({...}, ",")..">")
+local function logStatus(sM, ...)
+  outPrint("Å2:"..gsKey..":"..tostring(sM)); return ...
 end
 
 local function getAngNorm(nA)
@@ -42,6 +44,13 @@ end
 local function getWireVecNorm(tV)
   local nN = getWireVecAbs(tV)
   for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
+end
+
+local function isWireVecZero(tV)
+  local bX = ((tonumber(tV[1]) or 0) == 0)
+  local bY = ((tonumber(tV[2]) or 0) == 0)
+  local bZ = ((tonumber(tV[3]) or 0) == 0)
+  return (bX and bY and bZ)
 end
 
 local function setWireVecXYZ(tV, nX, nY, nZ)
@@ -117,6 +126,9 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
     if(nM == 1 or nM == 4) then -- Sine [1] ramp [4] (number)
       vH, vL = oT, getAngNorm(oT + 180)
     elseif(nM == 2 or nM == 3) then -- Cross product [2],[3] (vector)
+      if(not isEntity(oB)) then return logError("Base entity invalid", nil) end
+      if(not isWireVecZero(vH)) then return logError("High vector zero", nil) end
+      if(not isWireVecZero(vA)) then return logError("Axis vector zero", nil) end
       vH = getWireVecNorm({ oT[1], oT[2], oT[3]})
       vL = getWireVecNorm({-oT[1],-oT[2],-oT[3]})
       vA = getWireVecNorm({ oA[1], oA[2], oA[3]})
