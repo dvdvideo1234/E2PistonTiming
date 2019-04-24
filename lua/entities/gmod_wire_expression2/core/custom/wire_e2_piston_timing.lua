@@ -90,10 +90,10 @@ end
 
 -------- General piston sign routine --------
 -- Sign mode [nM=nil] https://en.wikipedia.org/wiki/Square_wave
-tF[1] = function(R, H, L) return ((R >= H or R < L) and  1 or -1) end
-tF[2] = function(R, H, L) return ((R <= H or R > L) and -1 or  1) end
-tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
-
+tF[1] = function(R, H, L) local nA = getAngNorm(R - H)
+  local nB, aA = ((nA >= 0) and 1 or -1), mathAbs(nA)
+  return ((aA == 0 or aA == 180) and 0 or nB)
+end
 -------- Dedicated mode routines --------
 -- Wave  mode [nM=1] https://en.wikipedia.org/wiki/Sine_wave
 tF[4] = function(R, H) return mathSin(gnD2R * getAngNorm(R - H)) end
