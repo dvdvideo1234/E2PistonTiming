@@ -90,20 +90,28 @@ end
 
 -------- General piston sign routine --------
 -- Sign mode [nM=nil] https://en.wikipedia.org/wiki/Square_wave
-tF[1] = function(R, H, L) return ((R >= H or R < L) and  1 or -1) end
-tF[2] = function(R, H, L) return ((R <= H or R > L) and -1 or  1) end
-tF[3] = function(R, H, L) return ((R <= H) and -1 or 1) end
-
+tF[1] = function(R, H) local nA = getAngNorm(R - H)
+  local nB, aA = ((nA >= 0) and 1 or -1), mathAbs(nA)
+  return ((aA == 0 or aA == 180) and 0 or nB)
+end
 -------- Dedicated mode routines --------
 -- Wave  mode [nM=1] https://en.wikipedia.org/wiki/Sine_wave
-tF[4] = function(R, H) return mathSin(gnD2R * getAngNorm(R - H)) end
+tF[2] = function(R, H)
+  return mathSin(gnD2R * getAngNorm(R - H))
+end
 -- Cross product wave mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
-tF[5] = function(R, H, L, M, A, B) return getCross(R, H, A, B) end
+tF[3] = function(R, H, L, M, A, B)
+  return getCross(R, H, A, B)
+end
 -- Cross product sign mode [nM=3] https://en.wikipedia.org/wiki/Square_wave
-tF[6] = function(R, H, L, M, A, B) return getSign(getCross(R, H, A, B)) end
+tF[4] = function(R, H, L, M, A, B)
+  return getSign(getCross(R, H, A, B))
+end
 -- Direct ramp force mode [nM=4] https://en.wikipedia.org/wiki/Triangle_wave
-tF[7] = function(R, H) local nN = getAngNorm(R - H)
-  return (((mathAbs(nN) > 90) and -getAngNorm(nN + 180) or nN) / 90) end
+tF[5] = function(R, H) local nN = getAngNorm(R - H)
+  local nA, nM = -getAngNorm(nN + 180), mathAbs(nN)
+  return (((nM > 90) and nA or nN) / 90)
+end
 
 --[[
  * oE (entity)         --> Entity of the engine crankshaft. Usually the engine E2 also.
@@ -119,25 +127,22 @@ tF[7] = function(R, H) local nN = getAngNorm(R - H)
 ]]
 local function setPistonData(oE, iD, oT, nM, oA, oB)
   if(not isEntity(oE)) then return nil end
-  local tP = getData(oE); if(not tP) then
+  local tP, vL, vH, vA = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
-  local vL, vH, vA, iS
-  if(nM) then iS = (nM + 3) -- Dedicated modes
-    if(nM == 1 or nM == 4) then -- Sine [1] ramp [4] (number)
+  local nM = (tonumber(nM) or 0)
+  if(nM) then -- Switch initialization mode
+    if(nM == 1 or nM == 2 or nM == 5) then -- Sign [1], sine [2] ramp [5] (number)
       vH, vL = oT, getAngNorm(oT + 180)
-    elseif(nM == 2 or nM == 3) then -- Cross product [2],[3] (vector)
+    elseif(nM == 3 or nM == 4) then -- Cross product [3], [4] (vector)
       if(not isEntity(oB)) then return logError("Base entity invalid", nil) end
       if(not isWireVecZero(vH)) then return logError("High vector zero", nil) end
       if(not isWireVecZero(vA)) then return logError("Axis vector zero", nil) end
       vH = getWireVecNorm({ oT[1], oT[2], oT[3]})
       vL = getWireVecNorm({-oT[1],-oT[2],-oT[3]})
       vA = getWireVecNorm({ oA[1], oA[2], oA[3]})
-    end
-  else vH, vL = oT, getAngNorm(oT + 180)
-    if    (vH > 0) then iS = 1     -- Sign definitions (+)
-    elseif(vH < 0) then iS = 2     -- Sign definitions (-)
-    else --[[ Zero R ]] iS = 3 end -- Sign definitions (0)
-  end; return setData(oE, iD, {tF[iS], vH, vL, (nM or 0), vA, oB})
+    else return logError("Mode ["..tostring(nM).."] not supported", nil) end
+    return setData(oE, iD, {tF[nM], vH, vL, nM, vA, oB})
+  else return logError("Mode not defined", nil) end 
 end
 
 local function getPistonData(oE, iD, vR, iP)
@@ -194,72 +199,72 @@ end
 
 __e2setcost(20)
 e2function entity entity:setPistonSign(number iD, number nT)
-  return setPistonData(this, iD, nT)
+  return setPistonData(this, iD, nT, 1)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonSign(string iD, number nT)
-  return setPistonData(this, iD, nT)
+  return setPistonData(this, iD, nT, 1)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWave(number iD, number nT)
-  return setPistonData(this, iD, nT, 1)
+  return setPistonData(this, iD, nT, 2)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWave(string iD, number nT)
-  return setPistonData(this, iD, nT, 1)
-end
-
-__e2setcost(20)
-e2function entity entity:setPistonSignX(number iD, vector vT)
-  return setPistonData(this, iD, vT, 3, gvAxis, geBase)
-end
-
-__e2setcost(20)
-e2function entity entity:setPistonSignX(string iD, vector vT)
-  return setPistonData(this, iD, vT, 3, gvAxis, geBase)
-end
-
-__e2setcost(20)
-e2function entity entity:setPistonSignX(number iD, vector vT, vector vA, entity oB)
-  return setPistonData(this, iD, vT, 3, vA, oB)
-end
-
-__e2setcost(20)
-e2function entity entity:setPistonSignX(string iD, vector vT, vector vA, entity oB)
-  return setPistonData(this, iD, vT, 3, vA, oB)
+  return setPistonData(this, iD, nT, 2)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(number iD, vector vT)
-  return setPistonData(this, iD, vT, 2, gvAxis, geBase)
+  return setPistonData(this, iD, vT, 3, gvAxis, geBase)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(string iD, vector vT)
-  return setPistonData(this, iD, vT, 2, gvAxis, geBase)
+  return setPistonData(this, iD, vT, 3, gvAxis, geBase)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(number iD, vector vT, vector vA, entity oB)
-  return setPistonData(this, iD, vT, 2, vA, oB)
+  return setPistonData(this, iD, vT, 3, vA, oB)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(string iD, vector vT, vector vA, entity oB)
-  return setPistonData(this, iD, vT, 2, vA, oB)
+  return setPistonData(this, iD, vT, 3, vA, oB)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonSignX(number iD, vector vT)
+  return setPistonData(this, iD, vT, 4, gvAxis, geBase)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonSignX(string iD, vector vT)
+  return setPistonData(this, iD, vT, 4, gvAxis, geBase)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonSignX(number iD, vector vT, vector vA, entity oB)
+  return setPistonData(this, iD, vT, 4, vA, oB)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonSignX(string iD, vector vT, vector vA, entity oB)
+  return setPistonData(this, iD, vT, 4, vA, oB)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonRamp(number iD, number nT)
-  return setPistonData(this, iD, nT, 4)
+  return setPistonData(this, iD, nT, 5)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonRamp(string iD, number nT)
-  return setPistonData(this, iD, nT, 4)
+  return setPistonData(this, iD, nT, 5)
 end
 
 __e2setcost(5)
