@@ -7,8 +7,8 @@ local outError    = error -- The function which generates error and prints it ou
 local outPrint    = print -- The function that outputs a string into the console
 local tF, gnD2R   = {}, (math.pi / 180)
 local gsKey       = "wire_e2_piston_timing"
-local gvAxis, geBase = {0,0,0}, nil -- Global axis and base ntity
-local gsRoll, gsHigh, gsAxis = Vector(), Vector(), Vector()
+local gwAxis, geBase = {0,0,0}, nil -- Global axis and base ntity
+local gvRoll, gvHigh, gvAxis = Vector(), Vector(), Vector()
 
 E2Lib.RegisterExtension(gsKey, true, "Allows E2 chips to attach pistons to the engine crankshaft props")
 
@@ -32,8 +32,16 @@ local function isHere(aV)
   return (aV ~= nil)
 end
 
+local function getWireVecZero()
+  return {0,0,0}
+end
+
+local function getWireVecXYZ(nX, nY, nZ)
+  return {tonumber(nX) or 0, tonumber(nY) or 0, tonumber(nZ) or 0}
+end
+
 local function getWireVecCopy(tV)
-  return (tV and {tV[1], tV[2], tV[3]} or {0,0,0})
+  return (tV and getWireVecXYZ(tV[1], tV[2], tV[3]) or getWireVecZero())
 end
 
 local function getWireVecAbs(tV) local nN = 0
@@ -82,9 +90,9 @@ end
 local function getCross(tR, tH, tA, oB)
   if(not isEntity(oB)) then return 0 end
   local aB = oB:GetAngles() -- Needed for rotations
-  local vR = setVector(gsRoll, tR[1], tR[2], tR[3]); vR:Normalize()
-  local vH = setVector(gsHigh, tH[1], tH[2], tH[3]); vH:Rotate(aB)
-  local vA = setVector(gsAxis, tA[1], tA[2], tA[3]); vA:Rotate(aB)
+  local vR = setVector(gvRoll, tR[1], tR[2], tR[3]); vR:Normalize()
+  local vH = setVector(gvHigh, tH[1], tH[2], tH[3]); vH:Rotate(aB)
+  local vA = setVector(gvAxis, tA[1], tA[2], tA[3]); vA:Rotate(aB)
   return vH:Cross(vR):Dot(vA)
 end
 
@@ -164,37 +172,37 @@ end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(vector vA)
-  setWireVecXYZ(gvAxis, vA[1], vA[2], vA[3]); return this
+  setWireVecXYZ(gwAxis, vA[1], vA[2], vA[3]); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(vector2 vA)
-  setWireVecXYZ(gvAxis, vA[1], vA[2], 0); return this
+  setWireVecXYZ(gwAxis, vA[1], vA[2], 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(array vA)
-  setWireVecXYZ(gvAxis, vA[1], vA[2], vA[3]); return this
+  setWireVecXYZ(gwAxis, vA[1], vA[2], vA[3]); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X, number Y, number Z)
-  setWireVecXYZ(gvAxis, X, Y, Z); return this
+  setWireVecXYZ(gwAxis, X, Y, Z); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X, number Y)
-  setWireVecXYZ(gvAxis, X, Y, 0); return this
+  setWireVecXYZ(gwAxis, X, Y, 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X)
-  setWireVecXYZ(gvAxis, X, 0, 0); return this
+  setWireVecXYZ(gwAxis, X, 0, 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:resPistonAxis()
-  setWireVecXYZ(gvAxis, 0, 0, 0); return this
+  setWireVecXYZ(gwAxis, 0, 0, 0); return this
 end
 
 __e2setcost(20)
@@ -219,12 +227,12 @@ end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(number iD, vector vT)
-  return setPistonData(this, iD, vT, 3, gvAxis, geBase)
+  return setPistonData(this, iD, vT, 3, gwAxis, geBase)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(string iD, vector vT)
-  return setPistonData(this, iD, vT, 3, gvAxis, geBase)
+  return setPistonData(this, iD, vT, 3, gwAxis, geBase)
 end
 
 __e2setcost(20)
@@ -239,12 +247,12 @@ end
 
 __e2setcost(20)
 e2function entity entity:setPistonSignX(number iD, vector vT)
-  return setPistonData(this, iD, vT, 4, gvAxis, geBase)
+  return setPistonData(this, iD, vT, 4, gwAxis, geBase)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonSignX(string iD, vector vT)
-  return setPistonData(this, iD, vT, 4, gvAxis, geBase)
+  return setPistonData(this, iD, vT, 4, gwAxis, geBase)
 end
 
 __e2setcost(20)
@@ -288,43 +296,43 @@ e2function number entity:getPiston(string iD, vector vR)
 end
 
 __e2setcost(5)
-e2function number entity:getMaxPiston(number iD)
-  return getPistonData(this, iD, nil, 1)
-end
-
-__e2setcost(5)
-e2function number entity:getMaxPiston(string iD)
-  return getPistonData(this, iD, nil, 1)
-end
-
-__e2setcost(5)
-e2function number entity:getMinPiston(number iD)
+e2function number entity:getPistonMax(number iD)
   return getPistonData(this, iD, nil, 2)
 end
 
 __e2setcost(5)
-e2function number entity:getMinPiston(string iD)
+e2function number entity:getPistonMax(string iD)
   return getPistonData(this, iD, nil, 2)
 end
 
 __e2setcost(5)
-e2function vector entity:getMaxPiston(number iD)
-  return getWireVecCopy(getPistonData(this, iD, nil, 1))
+e2function number entity:getPistonMin(number iD)
+  return getPistonData(this, iD, nil, 3)
 end
 
 __e2setcost(5)
-e2function vector entity:getMaxPiston(string iD)
-  return getWireVecCopy(getPistonData(this, iD, nil, 1))
+e2function number entity:getPistonMin(string iD)
+  return getPistonData(this, iD, nil, 3)
 end
 
 __e2setcost(5)
-e2function vector entity:getMinPiston(number iD)
+e2function vector entity:getPistonMaxX(number iD)
   return getWireVecCopy(getPistonData(this, iD, nil, 2))
 end
 
 __e2setcost(5)
-e2function vector entity:getMinPiston(string iD)
+e2function vector entity:getPistonMaxX(string iD)
   return getWireVecCopy(getPistonData(this, iD, nil, 2))
+end
+
+__e2setcost(5)
+e2function vector entity:getPistonMinX(number iD)
+  return getWireVecCopy(getPistonData(this, iD, nil, 3))
+end
+
+__e2setcost(5)
+e2function vector entity:getPistonMinX(string iD)
+  return getWireVecCopy(getPistonData(this, iD, nil, 3))
 end
 
 __e2setcost(2)
@@ -431,4 +439,11 @@ e2function number entity:allPiston()
   local tP = getData(this); if(not tP) then return 0 end
   local iP = 0; for key, val in pairs(tP) do iP = iP + 1 end
   return iP
+end
+
+__e2setcost(2)
+e2function vector entity:getPistonTop(vector vR)
+  if(not isEntity(this)) then return getWireVecZero() end
+  local vV = Vector(); vV:Set(vD); vV:Add(eB:GetPos())
+  vV:Set(eB:WorldToLocal(vV)); return getWireVecXYZ(vV.x, vV.y, vV.z)
 end
