@@ -93,25 +93,25 @@ local function getCross(tR, tH, tA, oB)
 end
 
 -------- General piston sign routine --------
--- Sign mode [nM=nil] https://en.wikipedia.org/wiki/Square_wave
+-- Sign mode [nM=1] https://en.wikipedia.org/wiki/Square_wave
 tF[1] = function(R, H) local nA = getAngNorm(R - H)
   local nB, aA = ((nA >= 0) and 1 or -1), mathAbs(nA)
   return ((aA == 0 or aA == 180) and 0 or nB)
 end
 -------- Dedicated mode routines --------
--- Wave  mode [nM=1] https://en.wikipedia.org/wiki/Sine_wave
+-- Wave  mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
 tF[2] = function(R, H)
   return mathSin(gnD2R * getAngNorm(R - H))
 end
--- Cross product wave mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
+-- Cross product wave mode [nM=3] https://en.wikipedia.org/wiki/Sine_wave
 tF[3] = function(R, H, L, M, A, B)
   return getCross(R, H, A, B)
 end
--- Cross product sign mode [nM=3] https://en.wikipedia.org/wiki/Square_wave
+-- Cross product sign mode [nM=4] https://en.wikipedia.org/wiki/Square_wave
 tF[4] = function(R, H, L, M, A, B)
   return getSign(getCross(R, H, A, B))
 end
--- Direct ramp force mode [nM=4] https://en.wikipedia.org/wiki/Triangle_wave
+-- Direct ramp force mode [nM=5] https://en.wikipedia.org/wiki/Triangle_wave
 tF[5] = function(R, H) local nN = getAngNorm(R - H)
   local nA, nM = -getAngNorm(nN + 180), mathAbs(nN)
   return (((nM > 90) and nA or nN) / 90)
