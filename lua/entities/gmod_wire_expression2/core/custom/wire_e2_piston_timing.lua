@@ -7,7 +7,7 @@ local outError    = error -- The function which generates error and prints it ou
 local outPrint    = print -- The function that outputs a string into the console
 local tF, gnD2R   = {}, (math.pi / 180)
 local gsKey       = "wire_e2_piston_timing"
-local gwAxis, geBase = {0,0,0}, nil -- Global axis and base ntity
+local gwAxis, gwZero, geBase = {0,0,0}, {0,0,0}, nil -- Global axis and base ntity
 local gvRoll, gvHigh, gvAxis = Vector(), Vector(), Vector()
 
 E2Lib.RegisterExtension(gsKey, true, "Allows E2 chips to attach pistons to the engine crankshaft props")
@@ -32,16 +32,12 @@ local function isHere(aV)
   return (aV ~= nil)
 end
 
-local function getWireVecZero()
-  return {0,0,0}
-end
-
 local function getWireVecXYZ(nX, nY, nZ)
   return {tonumber(nX) or 0, tonumber(nY) or 0, tonumber(nZ) or 0}
 end
 
 local function getWireVecCopy(tV)
-  return (tV and getWireVecXYZ(tV[1], tV[2], tV[3]) or getWireVecZero())
+  return (tV and tableCopy(tV) or tableCopy(gwZero))
 end
 
 local function getWireVecAbs(tV) local nN = 0
@@ -49,7 +45,7 @@ local function getWireVecAbs(tV) local nN = 0
   return mathSqrt(nN)
 end
 
-local function getWireVecNorm(tV)
+local function setWireVecNorm(tV)
   local nN = getWireVecAbs(tV)
   for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
 end
@@ -81,18 +77,18 @@ local function setData(oE, iD, oV)
   return oE -- Return crankshaft entity
 end
 
-local function setVector(vV, nX, nY, nZ)
-  vV.x = (tonumber(nX) or 0)
-  vV.y = (tonumber(nY) or 0)
-  vV.z = (tonumber(nZ) or 0); return vV
+local function setVectorWire(vV, tV)
+  vV.x = (tonumber(tV[1]) or 0)
+  vV.y = (tonumber(tV[2]) or 0)
+  vV.z = (tonumber(tV[3]) or 0); return vV
 end
 
 local function getCross(tR, tH, tA, oB)
   if(not isEntity(oB)) then return 0 end
   local aB = oB:GetAngles() -- Needed for rotations
-  local vR = setVector(gvRoll, tR[1], tR[2], tR[3]); vR:Normalize()
-  local vH = setVector(gvHigh, tH[1], tH[2], tH[3]); vH:Rotate(aB)
-  local vA = setVector(gvAxis, tA[1], tA[2], tA[3]); vA:Rotate(aB)
+  local vR = setVectorWire(gvRoll, tR); vR:Normalize()
+  local vH = setVectorWire(gvHigh, tH); vH:Rotate(aB)
+  local vA = setVectorWire(gvAxis, tA); vA:Rotate(aB)
   return vH:Cross(vR):Dot(vA)
 end
 
@@ -145,9 +141,9 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
       if(not isEntity(oB)) then return logError("Base entity invalid", nil) end
       if(not isWireVecZero(vH)) then return logError("High vector zero", nil) end
       if(not isWireVecZero(vA)) then return logError("Axis vector zero", nil) end
-      vH = getWireVecNorm({ oT[1], oT[2], oT[3]})
-      vL = getWireVecNorm({-oT[1],-oT[2],-oT[3]})
-      vA = getWireVecNorm({ oA[1], oA[2], oA[3]})
+      vH = setWireVecNorm({ oT[1], oT[2], oT[3]})
+      vL = setWireVecNorm({-oT[1],-oT[2],-oT[3]})
+      vA = setWireVecNorm({ oA[1], oA[2], oA[3]})
     else return logError("Mode ["..tostring(nM).."] not supported", nil) end
     return setData(oE, iD, {tF[nM], vH, vL, nM, vA, oB})
   else return logError("Mode not defined", nil) end 
@@ -442,7 +438,7 @@ e2function number entity:allPiston()
 end
 
 __e2setcost(2)
-e2function vector entity:getPistonTop(vector vR)
+e2function vector entity:getPistonTopRoll(vector vR)
   if(not isEntity(this)) then return getWireVecZero() end
   local vV = Vector(); vV:Set(vD); vV:Add(eB:GetPos())
   vV:Set(eB:WorldToLocal(vV)); return getWireVecXYZ(vV.x, vV.y, vV.z)
