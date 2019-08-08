@@ -7,17 +7,18 @@ local outError    = error -- The function which generates error and prints it ou
 local outPrint    = print -- The function that outputs a string into the console
 local tF, gnD2R   = {}, (math.pi / 180)
 local gsKey       = "wire_e2_piston_timing"
-local gwAxis, gwZero, geBase = {0,0,0}, {0,0,0}, nil -- Global axis and base ntity
-local gvRoll, gvHigh, gvAxis = Vector(), Vector(), Vector()
+local tChipInfo   = {} -- Stores the general information for every E2
+local gvRoll, gvHigh = Vector(), Vector()
+local gvAxis, gwZero = Vector(), {0,0,0}
 
 E2Lib.RegisterExtension(gsKey, true, "Allows E2 chips to attach pistons to the engine crankshaft props")
 
 local function logError(sM, ...)
-  outError("Å2:"..gsKey..":"..tostring(sM)); return ...
+  outError("E2:"..gsKey..":"..tostring(sM)); return ...
 end
 
 local function logStatus(sM, ...)
-  outPrint("Å2:"..gsKey..":"..tostring(sM)); return ...
+  outPrint("E2:"..gsKey..":"..tostring(sM)); return ...
 end
 
 local function getAngNorm(nA)
@@ -48,6 +49,17 @@ end
 local function setWireVecNorm(tV)
   local nN = getWireVecAbs(tV)
   for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
+end
+
+function getSpot(oSelf)
+  local oRefr = oSelf.entity
+  local tSpot = tChipInfo[oRefr]
+  if(not isHere(tSpot)) then -- Create player spot
+    tChipInfo[oRefr] = {}    -- Allocate table
+    tSpot = tChipInfo[oRefr] -- Refer the allocated table
+    tSpot.Axis = {0,0,0}     -- Local direction of rotation axis
+    tSpot.Base = nil         -- Cached base antity for overloading
+  end; return tSpot          -- Return player dedicated spot
 end
 
 local function isWireVecZero(tV)
@@ -146,7 +158,7 @@ local function setPistonData(oE, iD, oT, nM, oA, oB)
       vA = setWireVecNorm({ oA[1], oA[2], oA[3]})
     else return logError("Mode ["..tostring(nM).."] not supported", nil) end
     return setData(oE, iD, {tF[nM], vH, vL, nM, vA, oB})
-  else return logError("Mode not defined", nil) end 
+  else return logError("Mode not defined", nil) end
 end
 
 local function getPistonData(oE, iD, vR, iP)
@@ -158,47 +170,58 @@ end
 
 __e2setcost(1)
 e2function entity entity:putPistonBase(entity oB)
-  if(oB and oB:IsValid()) then geBase = oB end; return this
+  if(oB and oB:IsValid()) then
+    local tSpot = getSpot(self)
+    tSpot.Base = oB
+  end; return this
 end
 
 __e2setcost(1)
 e2function entity entity:resPistonBase()
-  geBase = nil; return this
+  local tSpot = getSpot(self)
+  tSpot.Base  = nil; return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(vector vA)
-  setWireVecXYZ(gwAxis, vA[1], vA[2], vA[3]); return this
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], vA[3]); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(vector2 vA)
-  setWireVecXYZ(gwAxis, vA[1], vA[2], 0); return this
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(array vA)
-  setWireVecXYZ(gwAxis, vA[1], vA[2], vA[3]); return this
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], vA[3]); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X, number Y, number Z)
-  setWireVecXYZ(gwAxis, X, Y, Z); return this
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, X, Y, Z); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X, number Y)
-  setWireVecXYZ(gwAxis, X, Y, 0); return this
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, X, Y, 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:putPistonAxis(number X)
-  setWireVecXYZ(gwAxis, X, 0, 0); return this
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, X, 0, 0); return this
 end
 
 __e2setcost(1)
 e2function entity entity:resPistonAxis()
-  setWireVecXYZ(gwAxis, 0, 0, 0); return this
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, 0, 0, 0); return this
 end
 
 __e2setcost(20)
@@ -223,12 +246,14 @@ end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(number iD, vector vT)
-  return setPistonData(this, iD, vT, 3, gwAxis, geBase)
+  local tSpot = getSpot(self)
+  return setPistonData(this, iD, vT, 3, tSpot.Axis, tSpot.Base)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(string iD, vector vT)
-  return setPistonData(this, iD, vT, 3, gwAxis, geBase)
+  local tSpot = getSpot(self)
+  return setPistonData(this, iD, vT, 3, tSpot.Axis, tSpot.Base)
 end
 
 __e2setcost(20)
@@ -243,12 +268,14 @@ end
 
 __e2setcost(20)
 e2function entity entity:setPistonSignX(number iD, vector vT)
-  return setPistonData(this, iD, vT, 4, gwAxis, geBase)
+  local tSpot = getSpot(self)
+  return setPistonData(this, iD, vT, 4, tSpot.Axis, tSpot.Base)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonSignX(string iD, vector vT)
-  return setPistonData(this, iD, vT, 4, gwAxis, geBase)
+  local tSpot = getSpot(self)
+  return setPistonData(this, iD, vT, 4, tSpot.Axis, tSpot.Base)
 end
 
 __e2setcost(20)
