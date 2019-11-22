@@ -51,6 +51,10 @@ local function logStatus(sMsg, oSelf, nPos, ...) -- logError
   end; return ...
 end
 
+local function isValid(oE)
+  return (oE and oE:IsValid())
+end
+
 local function getAngNorm(nA)
   return ((nA + 180) % 360 - 180)
 end
@@ -81,17 +85,6 @@ local function setWireVecNorm(tV)
   for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
 end
 
-function getSpot(oSelf)
-  local oRefr = oSelf.entity
-  local tSpot = tChipInfo[oRefr]
-  if(not isHere(tSpot)) then -- Create player spot
-    tChipInfo[oRefr] = {}    -- Allocate table
-    tSpot = tChipInfo[oRefr] -- Refer the allocated table
-    tSpot.Axis = {0,0,0}     -- Local direction of rotation axis
-    tSpot.Base = nil         -- Cached base antity for overloading
-  end; return tSpot          -- Return player dedicated spot
-end
-
 local function isWireVecZero(tV)
   local bX = ((tonumber(tV[1]) or 0) == 0)
   local bY = ((tonumber(tV[2]) or 0) == 0)
@@ -105,8 +98,37 @@ local function setWireVecXYZ(tV, nX, nY, nZ)
   tV[3] = (tonumber(nZ) or 0); return tV
 end
 
-local function isValid(oE)
-  return (oE and oE:IsValid())
+local function setVecWire(vV, tV)
+  vV.x = (tonumber(tV[1]) or 0)
+  vV.y = (tonumber(tV[2]) or 0)
+  vV.z = (tonumber(tV[3]) or 0); return vV
+end
+
+local function getCross(tR, tH, tA)
+  local vR = setVecWire(gvRoll, tR); vR:Normalize()
+  local vH = setVecWire(gvHigh, tH)
+  local vA = setVecWire(gvAxis, tA)
+  return vH:Cross(vR):Dot(vA)
+end
+
+local function getMarkBase(tV, oE, oB)
+  if(not isValid(oE)) then return getWireVecZero() end
+  if(not isValid(oB)) then return getWireVecZero() end
+  local vD = Vector(tV[1], tV[2], tV[3]); vD:Rotate(oE)
+  vD:Add(oB:GetPos()); vD:Set(oB:WorldToLocal(vD))
+  return getWireVecXYZ(vD[1], vD[2], vD[3])
+end
+
+function getSpot(oSelf)
+  local oRefr = oSelf.entity
+  local tSpot = tChipInfo[oRefr]
+  if(not isHere(tSpot)) then -- Check expression chip spot
+    tChipInfo[oRefr] = {}    -- Allocate table when not available
+    tSpot = tChipInfo[oRefr] -- Refer the allocated table to store into
+    tSpot.Axis = {0,0,0}     -- Rotation axis stored as a local vector relative to BASE
+    tSpot.Mark = {0,0,0}     -- Roll zero-mark stored as a local vector relative to SHAFT
+    tSpot.Base = nil         -- Entity for overloading and also the engine BASE entity
+  end; return tSpot          -- Return expression chip dedicated spot
 end
 
 local function getData(oE, iD) local tP = oE[gsKey]
@@ -115,23 +137,7 @@ end
 
 local function setData(oE, iD, oV)
   if(isHere(iD)) then oE[gsKey][iD] = oV else oE[gsKey] = oV end
-  if(not isHere(oV)) then collectgarbage(); end
   return oE -- Return crankshaft entity
-end
-
-local function setVectorWire(vV, tV)
-  vV.x = (tonumber(tV[1]) or 0)
-  vV.y = (tonumber(tV[2]) or 0)
-  vV.z = (tonumber(tV[3]) or 0); return vV
-end
-
-local function getCross(tR, tH, tA, oB)
-  if(not isValid(oB)) then return 0 end
-  local aB = oB:GetAngles() -- Needed for rotations
-  local vR = setVectorWire(gvRoll, tR); vR:Normalize()
-  local vH = setVectorWire(gvHigh, tH); vH:Rotate(aB)
-  local vA = setVectorWire(gvAxis, tA); vA:Rotate(aB)
-  return vH:Cross(vR):Dot(vA)
 end
 
 --[[ **************************** PISTON ROUTINES **************************** ]]
@@ -173,10 +179,8 @@ end
                            defined list of algorithms for obtaining the output function
  * oA (vector)         --> Engine rotational axis local direction vector relative to the
                            base prop used for projections
- * oB (entity)         --> Engine base prop that the shaft is axised to and all other
-                           props are also constrained to it. Used for a coordinate reference.
 ]]
-local function setPistonData(oS, oE, iD, oT, nM, oA, oB)
+local function setPistonData(oS, oE, iD, oT, nM, oA)
   if(not isValid(oE)) then return nil end
   local tP, vL, vH, vA = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
@@ -185,28 +189,27 @@ local function setPistonData(oS, oE, iD, oT, nM, oA, oB)
     if(nM == 1 or nM == 2 or nM == 5) then -- Sign [1], sine [2] ramp [5] (number)
       vH, vL = oT, getAngNorm(oT + 180) -- Normalize the high and low angle
     elseif(nM == 3 or nM == 4) then -- Cross product [3], [4] (vector)
-      if(not isValid(oB)) then return logStatus("Base entity invalid", oS, nil) end
-      if(not isWireVecZero(vH)) then return logStatus("High vector zero", oS, nil) end
-      if(not isWireVecZero(vA)) then return logStatus("Axis vector zero", oS, nil) end
+      if(not isWireVecZero(vH)) then return logStatus("High vector zero", oS) end
+      if(not isWireVecZero(vA)) then return logStatus("Axis vector zero", oS) end
       vH = setWireVecNorm({ oT[1], oT[2], oT[3]})
       vL = setWireVecNorm({-oT[1],-oT[2],-oT[3]})
       vA = setWireVecNorm({ oA[1], oA[2], oA[3]})
-    else return logStatus("Mode ["..tostring(nM).."] not supported", oS, nil) end
-    return setData(oE, iD, {tF[nM], vH, vL, nM, vA, oB})
-  else return logStatus("Mode not defined", oS, nil) end
+    else return logStatus("Mode ["..tostring(nM).."] not supported", oS) end
+    return setData(oE, iD, {tF[nM], vH, vL, nM, vA})
+  else return logStatus("Mode not defined", oS) end
 end
 
 local function getPistonData(oE, iD, vR, iP)
   if(not isValid(oE)) then return 0 end
   local tP = getData(oE, iD); if(not tP) then return 0 end
   if(iP) then return (tP[iP] or 0) end
-  return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
+  return tP[1](vR, tP[2], tP[3], tP[4], tP[5])
 end
 
---[[ **************************** SETUP GLOBALS **************************** ]]
+--[[ **************************** GLOBALS ( BASE ENTITY ) **************************** ]]
 
 __e2setcost(1)
-e2function entity entity:putPistonBase(entity oB)
+e2function entity entity:setPistonBase(entity oB)
   if(oB and oB:IsValid()) then
     local tSpot = getSpot(self)
     tSpot.Base = oB
@@ -220,45 +223,111 @@ e2function entity entity:resPistonBase()
 end
 
 __e2setcost(1)
-e2function entity entity:putPistonAxis(vector vA)
+e2function entity entity:getPistonBase()
   local tSpot = getSpot(self)
-  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], vA[3]); return this
+  local oB = tSpot.Base -- Read base entity
+  if(oB and oB:IsValid()) then return oB end
+  return nil -- There is no valid base entity
 end
 
-__e2setcost(1)
-e2function entity entity:putPistonAxis(vector2 vA)
-  local tSpot = getSpot(self)
-  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], 0); return this
-end
+--[[ **************************** GLOBALS ( BASE AXIS ) **************************** ]]
 
-__e2setcost(1)
-e2function entity entity:putPistonAxis(array vA)
+__e2setcost(5)
+e2function vector entity:getPistonAxis()
   local tSpot = getSpot(self)
-  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], vA[3]); return this
-end
-
-__e2setcost(1)
-e2function entity entity:putPistonAxis(number X, number Y, number Z)
-  local tSpot = getSpot(self)
-  setWireVecXYZ(tSpot.Axis, X, Y, Z); return this
-end
-
-__e2setcost(1)
-e2function entity entity:putPistonAxis(number X, number Y)
-  local tSpot = getSpot(self)
-  setWireVecXYZ(tSpot.Axis, X, Y, 0); return this
-end
-
-__e2setcost(1)
-e2function entity entity:putPistonAxis(number X)
-  local tSpot = getSpot(self)
-  setWireVecXYZ(tSpot.Axis, X, 0, 0); return this
+  return tSpot.Axis
 end
 
 __e2setcost(1)
 e2function entity entity:resPistonAxis()
   local tSpot = getSpot(self)
   setWireVecXYZ(tSpot.Axis, 0, 0, 0); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonAxis(vector vA)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], vA[3]); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonAxis(vector2 vA)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], 0); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonAxis(array vA)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, vA[1], vA[2], vA[3]); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonAxis(number X, number Y, number Z)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, X, Y, Z); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonAxis(number X, number Y)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, X, Y, 0); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonAxis(number X)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Axis, X, 0, 0); return this
+end
+
+--[[ **************************** GLOBALS ( SHAFT MARK ) **************************** ]]
+
+__e2setcost(5)
+e2function vector entity:getPistonMark()
+  local tSpot = getSpot(self)
+  return tSpot.Mark
+end
+
+__e2setcost(1)
+e2function entity entity:resPistonMark()
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Mark, 0, 0, 0); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonMark(vector vA)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Mark, vA[1], vA[2], vA[3]); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonMark(vector2 vA)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Mark, vA[1], vA[2], 0); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonMark(array vA)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Mark, vA[1], vA[2], vA[3]); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonMark(number X, number Y, number Z)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Mark, X, Y, Z); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonMark(number X, number Y)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Mark, X, Y, 0); return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonMark(number X)
+  local tSpot = getSpot(self)
+  setWireVecXYZ(tSpot.Mark, X, 0, 0); return this
 end
 
 --[[ **************************** CREATE **************************** ]]
@@ -286,45 +355,45 @@ end
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(number iD, vector vT)
   local tSpot = getSpot(self)
-  return setPistonData(self, this, iD, vT, 3, tSpot.Axis, tSpot.Base)
+  return setPistonData(self, this, iD, vT, 3, tSpot.Axis)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(string iD, vector vT)
   local tSpot = getSpot(self)
-  return setPistonData(self, this, iD, vT, 3, tSpot.Axis, tSpot.Base)
+  return setPistonData(self, this, iD, vT, 3, tSpot.Axis)
 end
 
 __e2setcost(20)
-e2function entity entity:setPistonWaveX(number iD, vector vT, vector vA, entity oB)
-  return setPistonData(self, this, iD, vT, 3, vA, oB)
+e2function entity entity:setPistonWaveX(number iD, vector vT, vector vA)
+  return setPistonData(self, this, iD, vT, 3, vA)
 end
 
 __e2setcost(20)
-e2function entity entity:setPistonWaveX(string iD, vector vT, vector vA, entity oB)
-  return setPistonData(self, this, iD, vT, 3, vA, oB)
+e2function entity entity:setPistonWaveX(string iD, vector vT, vector vA)
+  return setPistonData(self, this, iD, vT, 3, vA)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonSignX(number iD, vector vT)
   local tSpot = getSpot(self)
-  return setPistonData(self, this, iD, vT, 4, tSpot.Axis, tSpot.Base)
+  return setPistonData(self, this, iD, vT, 4, tSpot.Axis)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonSignX(string iD, vector vT)
   local tSpot = getSpot(self)
-  return setPistonData(self, this, iD, vT, 4, tSpot.Axis, tSpot.Base)
+  return setPistonData(self, this, iD, vT, 4, tSpot.Axis)
 end
 
 __e2setcost(20)
-e2function entity entity:setPistonSignX(number iD, vector vT, vector vA, entity oB)
-  return setPistonData(self, this, iD, vT, 4, vA, oB)
+e2function entity entity:setPistonSignX(number iD, vector vT, vector vA)
+  return setPistonData(self, this, iD, vT, 4, vA)
 end
 
 __e2setcost(20)
-e2function entity entity:setPistonSignX(string iD, vector vT, vector vA, entity oB)
-  return setPistonData(self, this, iD, vT, 4, vA, oB)
+e2function entity entity:setPistonSignX(string iD, vector vT, vector vA)
+  return setPistonData(self, this, iD, vT, 4, vA)
 end
 
 __e2setcost(20)
@@ -465,37 +534,27 @@ e2function vector entity:getPistonAxis(string iD)
   return getWireVecCopy(getPistonData(this, iD, nil, 5))
 end
 
-__e2setcost(2)
-e2function entity entity:getPistonBase(number iD)
-  return getPistonData(this, iD, nil, 6)
-end
-
-__e2setcost(2)
-e2function entity entity:getPistonBase(string iD)
-  return getPistonData(this, iD, nil, 6)
-end
-
 --[[ **************************** DELETE **************************** ]]
 
 __e2setcost(5)
 e2function entity entity:remPiston(number iD)
   if(not isValid(this)) then return nil end
   local tP = getData(this); if(not tP) then return nil end
-  return setData(this, iD, nil)
+  return setData(this, iD)
 end
 
 __e2setcost(5)
 e2function entity entity:remPiston(string iD)
   if(not isValid(this)) then return nil end
   local tP = getData(this); if(not tP) then return nil end
-  return setData(this, iD, nil)
+  return setData(this, iD)
 end
 
 __e2setcost(5)
 e2function entity entity:clrPiston()
   if(not isValid(this)) then return nil end
   if(not getData(this)) then return nil end
-  return setData(this, nil, nil)
+  return setData(this)
 end
 
 --[[ **************************** PISTONS COUNT **************************** ]]
@@ -517,9 +576,25 @@ end
 
 --[[ **************************** HELPER **************************** ]]
 
-__e2setcost(2)
-e2function vector entity:getPistonTopRoll(vector vR)
-  if(not isValid(this)) then return getWireVecZero() end
-  local vV = Vector(); vV:Set(vD); vV:Add(eB:GetPos())
-  vV:Set(eB:WorldToLocal(vV)); return getWireVecXYZ(vV.x, vV.y, vV.z)
+__e2setcost(5)
+e2function vector entity:getMark(vector vM, entity oB)
+  return getMarkBase(vM, this, oB)
+end
+
+__e2setcost(6)
+e2function vector entity:getMark(vector vM)
+  local tSpot = getSpot(self)
+  return getMarkBase(vM, this, tSpot.Base)
+end
+
+__e2setcost(6)
+e2function vector entity:getMark(entity oB)
+  local tSpot = getSpot(self)
+  return getMarkBase(tSpot.Mark, this, oB)
+end
+
+__e2setcost(6)
+e2function vector entity:getMark()
+  local tSpot = getSpot(self)
+  return getMarkBase(tSpot.Mark, this, tSpot.Base)
 end
