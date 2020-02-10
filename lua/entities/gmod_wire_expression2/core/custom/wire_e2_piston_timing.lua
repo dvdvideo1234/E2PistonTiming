@@ -8,7 +8,7 @@ local mathAbs     = math and math.abs
 local bitBor      = bit and bit.bor
 local tF, gnD2R   = {}, (math.pi / 180)
 local gsKey       = "wire_e2_piston_timing"
-local tChipInfo   = {} -- Stores the global information for every E2
+local gtChipInfo  = {} -- Stores the global information for every E2
 local gvRoll, gvHigh = Vector(), Vector()
 local gvAxis, gwZero = Vector(), {0,0,0}
 
@@ -121,14 +121,14 @@ end
 
 function getSpot(oSelf)
   local oRefr = oSelf.entity
-  local tSpot = tChipInfo[oRefr]
-  if(not isHere(tSpot)) then -- Check expression chip spot
-    tChipInfo[oRefr] = {}    -- Allocate table when not available
-    tSpot = tChipInfo[oRefr] -- Refer the allocated table to store into
-    tSpot.Axis = {0,0,0}     -- Rotation axis stored as a local vector relative to BASE
-    tSpot.Mark = {0,0,0}     -- Roll zero-mark stored as a local vector relative to SHAFT
-    tSpot.Base = nil         -- Entity for overloading and also the engine BASE entity
-  end; return tSpot          -- Return expression chip dedicated spot
+  local tSpot = gtChipInfo[oRefr]
+  if(not isHere(tSpot)) then  -- Check expression chip spot
+    gtChipInfo[oRefr] = {}    -- Allocate table when not available
+    tSpot = gtChipInfo[oRefr] -- Refer the allocated table to store into
+    tSpot.Axis = {0,0,0}      -- Rotation axis stored as a local vector relative to BASE
+    tSpot.Mark = {0,0,0}      -- Roll zero-mark stored as a local vector relative to SHAFT
+    tSpot.Base = nil          -- Entity for overloading and also the engine BASE entity
+  end; return tSpot           -- Return expression chip dedicated spot
 end
 
 local function getData(oE, iD) local tP = oE[gsKey]
