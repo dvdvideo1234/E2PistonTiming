@@ -7,13 +7,16 @@ local mathSin     = math and math.sin
 local mathAbs     = math and math.abs
 local bitBor      = bit and bit.bor
 local gnD2R       = (math.pi / 180)
-local gsKey       = "wire_e2_piston_timing"
+local gsKey       = "wire_expression2_piston_timing"
 local gtChipInfo  = {} -- Stores the global information for every E2
 local gtRoutines  = {} -- Stores global piston routines information
 local gvRoll, gvHigh = Vector(), Vector()
 local gvAxis, gwZero = Vector(), {0,0,0}
 
-E2Lib.RegisterExtension(gsKey, true, "Allows E2 chips to attach pistons to the engine crankshaft props")
+E2Lib.RegisterExtension("piston_timing", true,
+  "Allows E2 chips to attach pistons to the engine crankshaft props",
+  "Configures prop engine pistons without messy boolean control conditions. Uses dedicated routines for each piston type."
+)
 
 -- Client and server have independent value
 local gnIndependentUsed = bitBor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY)
@@ -81,7 +84,7 @@ local function getWireNorm(tV) local nN = 0
   return mathSqrt(nN)
 end
 
-local function setWireVecTune(tV, vN)
+local function setWireTune(tV, vN)
   local nN = (tonumber(vN) or getWireNorm(tV))
   for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
 end
@@ -109,8 +112,7 @@ local function getWireCross(tR, tH, tA)
   local vR = setVecWire(gvRoll, tR); vR:Normalize()
   local vH = setVecWire(gvHigh, tH)
   local vA = setVecWire(gvAxis, tA)
-  local vC = vH:Cross(vR):Dot(vA)
-  return getWireXYZ(vC.x, vC.y, vC.z)
+  return vH:Cross(vR):Dot(vA)
 end
 
 --[[ Converts the mark vector local to the SHAFT entity to
@@ -120,8 +122,8 @@ end
   oB -> The entity used as an engine BASE prop
 ]]
 local function getMarkBase(tV, oE, oB)
-  if(not isValid(oE)) then return getWireVecZero() end
-  if(not isValid(oB)) then return getWireVecZero() end
+  if(not isValid(oE)) then return getWireXYZ() end
+  if(not isValid(oB)) then return getWireXYZ() end
   local vM = Vector(tV[1], tV[2], tV[3])
   vM:Rotate(oE:GetAngles()); vM:Add(oB:GetPos())
   vM:Set(oB:WorldToLocal(vM))
@@ -155,7 +157,7 @@ R   -> Roll value of the SHAFT entity
 H   -> Roll value for the piston highest point ( vector or number )
 L   -> Roll value for the piston lowest point ( vector or number )
 M   -> Piston initialization mode for the routine issued by the user
-A   -> Axsis issued by the cross product timings in locall coordinates
+A   -> Axis issued by the cross product timings in local coordinates
 B   -> Entity for overloading and also the engine BASE entity
 [1] -> Contains the evaluation function definition for the given mode
 [2] -> Contains the internal data interpretation type for output calculation
@@ -164,32 +166,32 @@ B   -> Entity for overloading and also the engine BASE entity
 
 -- Sign mode [nM=1] https://en.wikipedia.org/wiki/Square_wave
 gtRoutines[1] = {
-function(R, H, L, M, A, B) local nA = getAngNorm(R - H)
+function(R, H, L, M, A) local nA = getAngNorm(R - H)
   local nB, aA = ((nA >= 0) and 1 or -1), mathAbs(nA)
   return ((aA == 0 or aA == 180) and 0 or nB)
 end, "number" }
 
 -- Wave  mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
 gtRoutines[2] = {
-function(R, H, L, M, A, B)
+function(R, H, L, M, A)
   return mathSin(gnD2R * getAngNorm(R - H))
 end, "number" }
 
 -- Cross product wave mode [nM=3] https://en.wikipedia.org/wiki/Sine_wave
 gtRoutines[3] = {
-function(R, H, L, M, A, B)
+function(R, H, L, M, A)
   return getWireCross(R, H, A)
 end, "vector" }
 
 -- Cross product sign mode [nM=4] https://en.wikipedia.org/wiki/Square_wave
 gtRoutines[4] = {
-function(R, H, L, M, A, B)
+function(R, H, L, M, A)
   return getSign(getWireCross(R, H, A))
 end, "vector" }
 
 -- Direct ramp force mode [nM=5] https://en.wikipedia.org/wiki/Triangle_wave
 gtRoutines[5] = {
-function(R, H, L, M, A, B) local nN = getAngNorm(R - H)
+function(R, H, L, M, A) local nN = getAngNorm(R - H)
   local nA, nM = -getAngNorm(nN + 180), mathAbs(nN)
   return (((nM > 90) and nA or nN) / 90)
 end, "number" }
@@ -198,10 +200,10 @@ end, "number" }
 
  * oS (expression)     --> The instance table of the E2 chip itself
  * oE (entity)         --> Entity of the engine crankshaft. Usually also the engine E2 prop.
- * iD (number, string) --> Key to store the data by. Either string or a nmber.
+ * iD (number, string) --> Key to store the data by. Either string or a number.
  * oT (number, vector) --> Top location of the piston in degrees or
                            local direction vector relative to the BASE prop entity.
- * nM (number)         --> Operational mode on initialization. It choses between the
+ * nM (number)         --> Operational mode on initialization. It chooses between the
                            defined list of algorithms for obtaining the output function
  * oA (vector)         --> Engine rotational axis local direction vector relative to the
                            BASE prop entity used for projections
@@ -214,11 +216,11 @@ local function setPistonData(oS, oE, iD, oT, nM, oA)
   if(nM == 1 or nM == 2 or nM == 5) then -- Sign [1], sine [2] ramp [5] (number)
     vH, vL = oT, getAngNorm(oT + 180) -- Normalize the high and low angle
   elseif(nM == 3 or nM == 4) then -- Cross product [3], [4] (vector)
-    if(not isWireZero(vH)) then return logStatus("High vector zero", oS) end
-    if(not isWireZero(vA)) then return logStatus("Axis vector zero", oS) end
-    vH = setWireVecTune({ oT[1], oT[2], oT[3]})
-    vL = setWireVecTune({-oT[1],-oT[2],-oT[3]})
-    vA = setWireVecTune({ oA[1], oA[2], oA[3]})
+    if(isWireZero(oT)) then return logStatus("High vector zero", oS) end
+    if(isWireZero(oA)) then return logStatus("Axis vector zero", oS) end
+    vH = setWireTune({ oT[1], oT[2], oT[3]})
+    vL = setWireTune({-oT[1],-oT[2],-oT[3]})
+    vA = setWireTune({ oA[1], oA[2], oA[3]})
   else return logStatus("Mode ["..tostring(nM).."] not supported", oS) end
   return setData(oE, iD, {gtRoutines[nM][1], vH, vL, nM, vA})
 end
@@ -227,8 +229,7 @@ local function getPistonData(oE, iD, vR, iP)
   if(not isValid(oE)) then return 0 end
   local tP = getData(oE, iD); if(not tP) then return 0 end
   if(iP) then return (tP[iP] or 0) end
-  local bS, nP = pcall(tP[1], vR, tP[2], tP[3], tP[4], tP[5])
-  if(not bS) then return 0 end; return nP
+  return tP[1](vR, tP[2], tP[3], tP[4], tP[5])
 end
 
 local function enSetupData(oE, iD, sT)
@@ -285,37 +286,37 @@ end
 __e2setcost(1)
 e2function entity entity:setPistonAxis(vector vA)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3]); return this
+  setWireTune(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3])); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(vector2 vA)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Axis, vA[1], vA[2], 0); return this
+  setWireTune(setWireXYZ(tSpot.Axis, vA[1], vA[2], 0)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(array vA)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3]); return this
+  setWireTune(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3])); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(number X, number Y, number Z)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Axis, X, Y, Z); return this
+  setWireTune(setWireXYZ(tSpot.Axis, X, Y, Z)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(number X, number Y)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Axis, X, Y, 0); return this
+  setWireTune(setWireXYZ(tSpot.Axis, X, Y, 0)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(number X)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Axis, X, 0, 0); return this
+  setWireTune(setWireXYZ(tSpot.Axis, X, 0, 0)); return this
 end
 
 --[[ **************************** SHAFT MARK ( GLOBALS ) **************************** ]]
@@ -335,37 +336,37 @@ end
 __e2setcost(1)
 e2function entity entity:setPistonMark(vector vM)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3]); return this
+  setWireTune(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3])); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(vector2 vM)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Mark, vM[1], vM[2], 0); return this
+  setWireTune(setWireXYZ(tSpot.Mark, vM[1], vM[2], 0)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(array vM)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3]); return this
+  setWireTune(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3])); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(number X, number Y, number Z)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Mark, X, Y, Z); return this
+  setWireTune(setWireXYZ(tSpot.Mark, X, Y, Z)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(number X, number Y)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Mark, X, Y, 0); return this
+  setWireTune(setWireXYZ(tSpot.Mark, X, Y, 0)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(number X)
   local tSpot = getSpot(self)
-  setWireXYZ(tSpot.Mark, X, 0, 0); return this
+  setWireTune(setWireXYZ(tSpot.Mark, X, 0, 0)); return this
 end
 
 --[[ **************************** SHAFT MARK ( LOCAL ) **************************** ]]
@@ -525,25 +526,25 @@ end
 
 __e2setcost(5)
 e2function vector entity:getPistonMaxX(number iD)
-  if(not enSetupData(this, iD, "vector")) then return getWireCopy() end
+  if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
   return getWireCopy(getPistonData(this, iD, nil, 2))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonMaxX(string iD)
-  if(not enSetupData(this, iD, "vector")) then return getWireCopy() end
+  if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
   return getWireCopy(getPistonData(this, iD, nil, 2))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonMinX(number iD)
-  if(not enSetupData(this, iD, "vector")) then return getWireCopy() end
+  if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
   return getWireCopy(getPistonData(this, iD, nil, 3))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonMinX(string iD)
-  if(not enSetupData(this, iD, "vector")) then return getWireCopy() end
+  if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
   return getWireCopy(getPistonData(this, iD, nil, 3))
 end
 
@@ -551,13 +552,13 @@ end
 
 __e2setcost(5)
 e2function vector entity:getPistonAxis(number iD)
-  if(not enSetupData(this, iD, "vector")) then return getWireCopy() end
+  if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
   return getWireCopy(getPistonData(this, iD, nil, 5))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonAxis(string iD)
-  if(not enSetupData(this, iD, "vector")) then return getWireCopy() end
+  if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
   return getWireCopy(getPistonData(this, iD, nil, 5))
 end
 

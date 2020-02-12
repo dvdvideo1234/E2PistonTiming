@@ -1,0 +1,30 @@
+@name Cross product piston control
+@inputs On Bear:wirelink
+@outputs RPM [BER]:vector T1 F1
+@persist Mul [Chip Base Shaft]:entity
+@trigger 
+
+#  T1 T2
+
+if(first() || dupefinished())
+{
+    runOnTick(1)
+    Chip = entity()
+    Base = Chip:isConstrainedTo("axis")
+    Shaft = Bear:entity()
+    Mul = 40
+    Base:setPistonBase()
+    Base:setPistonAxis(0,1,0)
+    Base:setPistonMark(1,0,0)
+    Shaft:setPistonWaveX(1, vec(-0.42940521240234,0,-0.9033203125))
+}
+
+if(On){
+    RPM = Chip:angVel():yaw()/6
+    BER = Shaft:cnvPistonMark()
+    T1 = Shaft:getPiston(1, BER) * Mul
+    F1 = Shaft:isPistonWaveX(1)
+}else{
+    T1 = 0
+    F1 = 0
+}
