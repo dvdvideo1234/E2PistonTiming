@@ -197,7 +197,7 @@ end, "number" }
 --[[ **************************** WRAPPERS ****************************
 
  * oS (expression)     --> The instance table of the E2 chip itself
- * oE (entity)         --> Entity of the engine crankshaft. Usually the engine E2 also.
+ * oE (entity)         --> Entity of the engine crankshaft. Usually also the engine E2 prop.
  * iD (number, string) --> Key to store the data by. Either string or a nmber.
  * oT (number, vector) --> Top location of the piston in degrees or
                            local direction vector relative to the BASE prop entity.
@@ -241,10 +241,17 @@ end
 
 __e2setcost(1)
 e2function entity entity:setPistonBase(entity oB)
-  if(isValid(oB)) then
-    local tSpot = getSpot(self)
-    tSpot.Base = oB
-  end; return this
+  if(not isValid(this)) then return nil end
+  if(not isValid(oB)) then return nil end
+  local tSpot = getSpot(self)
+  tSpot.Base = oB; return this
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonBase()
+  if(not isValid(this)) then return nil end
+  local tSpot = getSpot(self)
+  tSpot.Base = this; return this
 end
 
 __e2setcost(1)

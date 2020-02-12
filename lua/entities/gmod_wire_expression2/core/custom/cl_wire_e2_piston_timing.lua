@@ -46,6 +46,7 @@ E2Helper.Descriptions["setPistonAxis(e:nnn)"] = "Stores the base prop axis local
 E2Helper.Descriptions["setPistonAxis(e:r)"] = "Stores the base prop axis local vector using an array"
 E2Helper.Descriptions["setPistonAxis(e:v)"] = "Stores the base prop axis local vector using a vector"
 E2Helper.Descriptions["setPistonAxis(e:xv2)"] = "Stores the base prop axis local vector using a 2D vector"
+E2Helper.Descriptions["setPistonBase(e:)"] = "Stores the base prop entity using no arguments"
 E2Helper.Descriptions["setPistonBase(e:e)"] = "Stores the base prop entity using an entity"
 E2Helper.Descriptions["setPistonMark(e:n)"] = "Stores the base prop general rotation mark local vector using x as number"
 E2Helper.Descriptions["setPistonMark(e:nn)"] = "Stores the base prop general rotation mark local vector using x and y as numbers"
