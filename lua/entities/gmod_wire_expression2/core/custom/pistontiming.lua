@@ -7,13 +7,14 @@ local mathSin     = math and math.sin
 local mathAbs     = math and math.abs
 local bitBor      = bit and bit.bor
 local gnD2R       = (math.pi / 180)
-local gsKey       = "wire_expression2_piston_timing"
+local gsName      = "pistontiming"
+local gsKey       = "wire_expression2_"..gsName
 local gtChipInfo  = {} -- Stores the global information for every E2
 local gtRoutines  = {} -- Stores global piston routines information
 local gvRoll, gvHigh = Vector(), Vector()
 local gvAxis, gwZero = Vector(), {0,0,0}
 
-E2Lib.RegisterExtension("piston_timing", true,
+E2Lib.RegisterExtension(gsName, true,
   "Allows E2 chips to attach pistons to the engine crankshaft props",
   "Configures prop engine pistons without messy boolean control conditions. Uses dedicated routines for each piston type."
 )
@@ -79,13 +80,13 @@ local function getWireCopy(tV)
   return (tV and tableCopy(tV) or tableCopy(gwZero))
 end
 
-local function getWireNorm(tV) local nN = 0
+local function getWireAbs(tV) local nN = 0
   for iD = 1, 3 do nN = nN + (tV[iD] or 0)^2 end
   return mathSqrt(nN)
 end
 
-local function setWireTune(tV, vN)
-  local nN = (tonumber(vN) or getWireNorm(tV))
+local function setWireDiv(tV, vN)
+  local nN = (tonumber(vN) or getWireAbs(tV))
   for iD = 1, 3 do tV[iD] = (tV[iD] / nN) end; return tV
 end
 
@@ -110,8 +111,8 @@ end
 
 local function getWireCross(tR, tH, tA)
   local vR = setVecWire(gvRoll, tR); vR:Normalize()
-  local vH = setVecWire(gvHigh, tH)
-  local vA = setVecWire(gvAxis, tA)
+  local vH = setVecWire(gvHigh, tH) -- Normalized on creation
+  local vA = setVecWire(gvAxis, tA) -- Normalized on creation
   return vH:Cross(vR):Dot(vA)
 end
 
@@ -158,7 +159,6 @@ H   -> Roll value for the piston highest point ( vector or number )
 L   -> Roll value for the piston lowest point ( vector or number )
 M   -> Piston initialization mode for the routine issued by the user
 A   -> Axis issued by the cross product timings in local coordinates
-B   -> Entity for overloading and also the engine BASE entity
 [1] -> Contains the evaluation function definition for the given mode
 [2] -> Contains the internal data interpretation type for output calculation
 
@@ -171,7 +171,7 @@ function(R, H, L, M, A) local nA = getAngNorm(R - H)
   return ((aA == 0 or aA == 180) and 0 or nB)
 end, "number" }
 
--- Wave  mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
+-- Wave mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
 gtRoutines[2] = {
 function(R, H, L, M, A)
   return mathSin(gnD2R * getAngNorm(R - H))
@@ -218,9 +218,9 @@ local function setPistonData(oS, oE, iD, oT, nM, oA)
   elseif(nM == 3 or nM == 4) then -- Cross product [3], [4] (vector)
     if(isWireZero(oT)) then return logStatus("High vector zero", oS) end
     if(isWireZero(oA)) then return logStatus("Axis vector zero", oS) end
-    vH = setWireTune({ oT[1], oT[2], oT[3]})
-    vL = setWireTune({-oT[1],-oT[2],-oT[3]})
-    vA = setWireTune({ oA[1], oA[2], oA[3]})
+    vH = setWireDiv({ oT[1], oT[2], oT[3]})
+    vL = setWireDiv({-oT[1],-oT[2],-oT[3]})
+    vA = setWireDiv({ oA[1], oA[2], oA[3]})
   else return logStatus("Mode ["..tostring(nM).."] not supported", oS) end
   return setData(oE, iD, {gtRoutines[nM][1], vH, vL, nM, vA})
 end
@@ -286,37 +286,37 @@ end
 __e2setcost(1)
 e2function entity entity:setPistonAxis(vector vA)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3])); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3])); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(vector2 vA)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Axis, vA[1], vA[2], 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], 0)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(array vA)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3])); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3])); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(number X, number Y, number Z)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Axis, X, Y, Z)); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, X, Y, Z)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(number X, number Y)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Axis, X, Y, 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, X, Y, 0)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonAxis(number X)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Axis, X, 0, 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, X, 0, 0)); return this
 end
 
 --[[ **************************** SHAFT MARK ( GLOBALS ) **************************** ]]
@@ -336,37 +336,37 @@ end
 __e2setcost(1)
 e2function entity entity:setPistonMark(vector vM)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3])); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3])); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(vector2 vM)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Mark, vM[1], vM[2], 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], 0)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(array vM)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3])); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3])); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(number X, number Y, number Z)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Mark, X, Y, Z)); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, X, Y, Z)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(number X, number Y)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Mark, X, Y, 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, X, Y, 0)); return this
 end
 
 __e2setcost(1)
 e2function entity entity:setPistonMark(number X)
   local tSpot = getSpot(self)
-  setWireTune(setWireXYZ(tSpot.Mark, X, 0, 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, X, 0, 0)); return this
 end
 
 --[[ **************************** SHAFT MARK ( LOCAL ) **************************** ]]
