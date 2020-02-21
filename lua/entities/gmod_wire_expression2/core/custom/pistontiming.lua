@@ -205,9 +205,9 @@ local function setPistonData(oS, oE, iD, oT, nM, oA)
   elseif(nM == 3 or nM == 4) then -- Cross product [3], [4] (vector)
     if(isWireZero(oT)) then return logStatus("High vector zero", oS) end
     if(isWireZero(oA)) then return logStatus("Axis vector zero", oS) end
-    vH = setWireDiv({ oT[1], oT[2], oT[3]}) -- The top vector location
-    vL = setWireDiv({-oT[1],-oT[2],-oT[3]})
-    vA = setWireDiv({ oA[1], oA[2], oA[3]})
+    vH = setWireDiv({ oT[1], oT[2], oT[3]}) -- Nomalized top vector location
+    vL = setWireDiv({-oT[1],-oT[2],-oT[3]}) -- Nomalized bottom vector location
+    vA = setWireDiv({ oA[1], oA[2], oA[3]}) -- Nomalized axis vector
   else return logStatus("Mode ["..tostring(nM).."] not supported", oS) end
   return setData(oE, iD, {gtRoutines[nM][1], vH, vL, nM, vA})
 end
