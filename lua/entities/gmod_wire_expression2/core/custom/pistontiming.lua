@@ -1,6 +1,6 @@
 --[[ **************************** CONFIGURATION **************************** ]]
 
-E2Lib.RegisterExtension(gsName, true,
+E2Lib.RegisterExtension("pistontiming", true,
   "Allows E2 chips to attach pistons to the engine crankshaft props",
   "Configures prop engine pistons without messy boolean control conditions. Uses dedicated routines for each piston type."
 )
@@ -11,8 +11,7 @@ local gnIndependentUsed = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEON
 local gnServerControled = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
 
 local gnD2R       = (math.pi / 180)
-local gsName      = "pistontiming"
-local gsKey       = "wire_expression2_"..gsName
+local gsKey       = "wire_expression2_pistontiming"
 local gtChipInfo  = {} -- Stores the global information for every E2
 local gtRoutines  = {} -- Stores global piston routines information
 local varEnStatus = CreateConVar(gsKey.."_enst",  0, gnIndependentUsed, "Enables status output messages")
@@ -43,18 +42,6 @@ local function logStatus(sMsg, oSelf, nPos, ...) -- logError
     local sTxt = gsFormLogs:format(sNam, sEID, tostring(sMsg))
     oPly:PrintMessage(nPos, sTxt:sub(1, 200))
   end; return ...
-end
-
-function getExpressionSpot(oSelf)
-  local oRefr = oSelf.entity
-  local tSpot = gtChipInfo[oRefr]
-  if(not isHere(tSpot)) then  -- Check expression chip spot
-    gtChipInfo[oRefr] = {}    -- Allocate table when not available
-    tSpot = gtChipInfo[oRefr] -- Refer the allocated table to store into
-    tSpot.Axis = {0,0,0}      -- Rotation axis stored as a local vector relative to BASE
-    tSpot.Mark = {0,0,0}      -- Roll zero-mark stored as a local vector relative to SHAFT
-    tSpot.Base = nil          -- Entity for overloading and also the engine BASE entity
-  end; return tSpot           -- Return expression chip dedicated spot
 end
 
 local function isValid(oE)
@@ -107,12 +94,26 @@ local function isWireZero(tV)
   return (bX and bY and bZ)
 end
 
+--[[ **************************** HELPER **************************** ]]
+
 local gvRoll, gvHigh, gvAxis = Vector(), Vector(), Vector()
 local function getWireCross(tR, tH, tA)
   gvRoll:SetUnpacked(unpack(tR)); gvRoll:Normalize()
   gvHigh:SetUnpacked(unpack(tH)) -- Normalized on creation
   gvAxis:SetUnpacked(unpack(tA)) -- Normalized on creation
   return gvHigh:Cross(gvRoll):Dot(gvAxis)
+end
+
+function getExpressionSpot(oSelf)
+  local oRefr = oSelf.entity
+  local tSpot = gtChipInfo[oRefr]
+  if(not isHere(tSpot)) then  -- Check expression chip spot
+    gtChipInfo[oRefr] = {}    -- Allocate table when not available
+    tSpot = gtChipInfo[oRefr] -- Refer the allocated table to store into
+    tSpot.Axis = {0,0,0}      -- Rotation axis stored as a local vector relative to BASE
+    tSpot.Mark = {0,0,0}      -- Roll zero-mark stored as a local vector relative to SHAFT
+    tSpot.Base = nil          -- Entity for overloading and also the engine BASE entity
+  end; return tSpot           -- Return expression chip dedicated spot
 end
 
 --[[ Converts the mark vector local to the SHAFT entity to

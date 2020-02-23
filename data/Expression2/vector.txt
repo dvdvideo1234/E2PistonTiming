@@ -2,9 +2,7 @@
 @inputs On Crank:wirelink
 @outputs RPM [BER]:vector T1 F1
 @persist Mul [Chip Base Shaft]:entity
-@trigger 
-
-#  T1 T2
+@trigger
 
 if(first() || dupefinished())
 {
