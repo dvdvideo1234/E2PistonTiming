@@ -256,8 +256,10 @@ end
 
 local function getPistonData(oE, iD, vR, iP)
   if(not isValid(oE)) then return 0 end
-  local tP = getData(oE, iD); if(not tP) then return 0 end
-  if(iP) then return (tP[iP] or 0) end
+  local tP = getData(oE, iD)
+  if(not tP) then return 0 end
+  if(iP) then return tP[iP] end
+  if(not tP[1]) then return 0 end
   return tP[1](vR, tP[2], tP[3], tP[4], tP[5])
 end
 
@@ -669,14 +671,16 @@ end
 __e2setcost(5)
 e2function entity entity:remPiston(number iD)
   if(not isValid(this)) then return nil end
-  local tP = getData(this); if(not tP) then return nil end
+  local tP = getData(this)
+  if(not tP) then return this end
   return setData(this, iD)
 end
 
 __e2setcost(5)
 e2function entity entity:remPiston(string iD)
   if(not isValid(this)) then return nil end
-  local tP = getData(this); if(not tP) then return nil end
+  local tP = getData(this)
+  if(not tP) then return this end
   return setData(this, iD)
 end
 
