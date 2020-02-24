@@ -56,10 +56,6 @@ local function getSign(nN)
   return (((nN > 0) and 1) or ((nN < 0) and -1) or 0)
 end
 
-local function isHere(aV)
-  return (aV ~= nil)
-end
-
 local function getWireXYZ(nX, nY, nZ)
   local x = (tonumber(nX) or 0)
   local y = (tonumber(nY) or 0)
@@ -96,6 +92,22 @@ end
 
 --[[ **************************** HELPER **************************** ]]
 
+--[[
+Calculates normalized ramp output of the roll marker period
+ * nP -> The roll marker period of the marker offset (R - H)
+]]
+local function getRampNorm(nP)
+  local nN = getAngNorm(nP)
+  local nA, nM = -getAngNorm(nN + 180), math.abs(nN)
+  return (((nM > 90) and nA or nN) / 90)
+end
+
+--[[
+Calculates vector cross product vua axis and highest point
+ * tR -> Wiremod vector type of the roll marker
+ * tH -> Wiremod vector type of the highest point
+ * tA -> Wiremod vector type of the shaft rotation axis
+]]
 local gvRoll, gvHigh, gvAxis = Vector(), Vector(), Vector()
 local function getWireCross(tR, tH, tA)
   gvRoll:SetUnpacked(unpack(tR)); gvRoll:Normalize()
@@ -104,39 +116,58 @@ local function getWireCross(tR, tH, tA)
   return gvHigh:Cross(gvRoll):Dot(gvAxis)
 end
 
+--[[
+Allocates/Indexes memory location for given expression chip
+ * oSelf -> Reference to the current expression chip allocated/indexed
+]]
 function getExpressionSpot(oSelf)
-  local oRefr = oSelf.entity
-  local tSpot = gtChipInfo[oRefr]
-  if(not isHere(tSpot)) then  -- Check expression chip spot
-    gtChipInfo[oRefr] = {}    -- Allocate table when not available
-    tSpot = gtChipInfo[oRefr] -- Refer the allocated table to store into
-    tSpot.Axis = {0,0,0}      -- Rotation axis stored as a local vector relative to BASE
-    tSpot.Mark = {0,0,0}      -- Roll zero-mark stored as a local vector relative to SHAFT
-    tSpot.Base = nil          -- Entity for overloading and also the engine BASE entity
-  end; return tSpot           -- Return expression chip dedicated spot
+  local oRefr = oSelf.entity      -- Pick a key reference
+  local tSpot = gtChipInfo[oRefr] -- Index the expression spot
+  if(not tSpot) then              -- Check expression chip spot
+    gtChipInfo[oRefr] = {}        -- Allocate table when not available
+    tSpot = gtChipInfo[oRefr]     -- Refer the allocated table to store into
+    tSpot.Axis = {0,0,0}          -- Rotation axis stored as a local vector relative to BASE
+    tSpot.Mark = {0,0,0}          -- Roll zero-mark stored as a local vector relative to SHAFT
+    tSpot.Base = nil              -- Entity for overloading and also the engine BASE entity
+  end; return tSpot               -- Return expression chip dedicated spot
 end
 
---[[ Converts the mark vector local to the SHAFT entity to
-     a mark vector local to the base entity
-  tV -> Mark as regular wire vector data type
-  oE -> The entity used as an engine SHAFT prop
-  oB -> The entity used as an engine BASE prop
+--[[
+Converts the mark vector local to the SHAFT entity to
+a mark vector local to the base entity
+ * tV -> Mark as regular wire vector data type
+ * oE -> The entity used as an engine SHAFT prop
+ * oB -> The entity used as an engine BASE prop
 ]]
 local function getMarkBase(tV, oE, oB)
   if(not isValid(oE)) then return getWireXYZ() end
   if(not isValid(oB)) then return getWireXYZ() end
+  if(isWireZero(tV)) then return getWireXYZ() end
   local vM = Vector(tV[1], tV[2], tV[3])
   vM:Rotate(oE:GetAngles()); vM:Add(oB:GetPos())
   vM:Set(oB:WorldToLocal(vM))
   return getWireXYZ(vM:Unpack())
 end
 
+--[[
+Reads the piston data from crankshaft entity placeholder
+If the iD is not provided returns all crankshaft modifications
+ * oE -> The crankshaft entity to check
+ * iD -> The piston data to be checked and returned
+]]
 local function getData(oE, iD) local tP = oE[gsKey]
   return (tP and (iD and tP[iD] or tP) or nil)
 end
 
+--[[
+Writes the piston data to crankshaft entity placeholder
+If the iD is not provided writes to crankshaft placeholder
+ * oE -> The crankshaft entity to be indexed
+ * iD -> The piston key to be used for indexing
+ * oV -> The value to be written in the placeholder
+]]
 local function setData(oE, iD, oV)
-  if(isHere(iD)) then oE[gsKey][iD] = oV else oE[gsKey] = oV end
+  if(iD) then oE[gsKey][iD] = oV else oE[gsKey] = oV end
   return oE -- Return crankshaft entity
 end
 
@@ -154,9 +185,9 @@ end
 
 -- Sign mode [nM=1] https://en.wikipedia.org/wiki/Square_wave
 gtRoutines[1] = {
-function(R, H, L, M, A) local nA = getAngNorm(R - H)
-  local nB, aA = ((nA >= 0) and 1 or -1), math.abs(nA)
-  return ((aA == 0 or aA == 180) and 0 or nB)
+function(R, H, L, M, A)
+  local nN = getAngNorm(R - H)
+  return ((math.abs(nN) == 180) and 0 or getSign(nN))
 end, "number" }
 
 -- Wave mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
@@ -179,10 +210,18 @@ end, "vector" }
 
 -- Direct ramp force mode [nM=5] https://en.wikipedia.org/wiki/Triangle_wave
 gtRoutines[5] = {
-function(R, H, L, M, A) local nN = getAngNorm(R - H)
-  local nA, nM = -getAngNorm(nN + 180), math.abs(nN)
-  return (((nM > 90) and nA or nN) / 90)
+function(R, H, L, M, A)
+  return getRampNorm(R - H)
 end, "number" }
+
+-- Trochoid force mode [nM=6] https://en.wikipedia.org/wiki/Trochoid
+gtRoutines[6] = {
+function(R, H, L, M, A)
+  local nP = com.getAngNorm(R - H)
+  local nN = getRampNorm(R - H + 90)
+  return getSign(nP) * math.sqrt(1 - nN^2)
+end, "number" }
+
 
 --[[ **************************** WRAPPERS ****************************
 
@@ -201,7 +240,8 @@ local function setPistonData(oS, oE, iD, oT, nM, oA)
   local tP, vL, vH, vA = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
   local nM = (tonumber(nM) or 0) -- Switch initialization mode
-  if(nM == 1 or nM == 2 or nM == 5) then -- Sign [1], sine [2] ramp [5] (number)
+  -- Sign [1], sine [2] ramp [5] troc [6] (number)
+  if(nM == 1 or nM == 2 or nM == 5, or nM == 6) then
     vH, vL, vA = oT, getAngNorm(oT + 180), nil -- Normalize the high and low angle
   elseif(nM == 3 or nM == 4) then -- Cross product [3], [4] (vector)
     if(isWireZero(oT)) then return logStatus("High vector zero", oS) end
@@ -464,6 +504,16 @@ e2function entity entity:setPistonRamp(string iD, number nT)
   return setPistonData(self, this, iD, nT, 5)
 end
 
+__e2setcost(20)
+e2function entity entity:setPistonTroc(number iD, number nT)
+  return setPistonData(self, this, iD, nT, 6)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonTroc(string iD, number nT)
+  return setPistonData(self, this, iD, nT, 6)
+end
+
 --[[ **************************** CALCULATE **************************** ]]
 
 __e2setcost(5)
@@ -600,6 +650,16 @@ end
 __e2setcost(2)
 e2function number entity:isPistonRamp(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 5) and 1 or 0)
+end
+
+__e2setcost(2)
+e2function number entity:isPistonTroc(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 6) and 1 or 0)
+end
+
+__e2setcost(2)
+e2function number entity:isPistonTroc(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 6) and 1 or 0)
 end
 
 --[[ **************************** DELETE **************************** ]]
