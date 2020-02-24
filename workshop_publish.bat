@@ -9,11 +9,11 @@ setlocal EnableDelayedExpansion
 set gmadGitHEAD=
 set gmadRevPath=%~dp0
 set gmadNameLOG=gmad_log.txt
-set gmadCommits=https://github.com/dvdvideo1234/PistonTimingE2/commit/
+set gmadName=E2PistonTiming
+set gmadCommits=https://github.com/dvdvideo1234/%gmadName%/commit/
 set gmadPathGIT=D:\Git\bin
 set gmadBinPath=F:\Games\Steam\steamapps\common\GarrysMod\bin
 set "gmadTime=%date% %time%"
-set gmadName=PistonTimingE2
 set gmadID=1493837859
 set gmadDirs=(lua)
 set gmadLogs=
@@ -33,9 +33,11 @@ echo.
 
 :: Extract repository source contents
 
-timeout 3
 rd /S /Q !gmadRevPath!Workshop
 del !gmadRevPath!!gmadNameLOG!
+
+timeout 5
+
 md %gmadRevPath%Workshop\!gmadName!
 for %%i in %gmadDirs% do (
   echo Extracting %%i
