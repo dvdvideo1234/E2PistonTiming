@@ -217,7 +217,7 @@ end, "number" }
 -- Trochoid force mode [nM=6] https://en.wikipedia.org/wiki/Trochoid
 gtRoutines[6] = {
 function(R, H, L, M, A)
-  local nP = com.getAngNorm(R - H)
+  local nP = getAngNorm(R - H)
   local nN = getRampNorm(R - H + 90)
   return getSign(nP) * math.sqrt(1 - nN^2)
 end, "number" }
@@ -239,18 +239,19 @@ local function setPistonData(oS, oE, iD, oT, nM, oA)
   if(not isValid(oE)) then return nil end
   local tP, vL, vH, vA = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
-  local nM = (tonumber(nM) or 0) -- Switch initialization mode
-  -- Sign [1], sine [2] ramp [5] troc [6] (number)
-  if(nM == 1 or nM == 2 or nM == 5, or nM == 6) then
+  local nM, rT = (tonumber(nM) or 0), nil -- Switch initialization mode
+  local tR = gtRoutines[nM]; rT = tostring(tR and tR[2] or "xxx")
+  -- Sign [1], sine [2] ramp [5] troc [6] data type (number)
+  if(rT == "number") then -- Check number internals
     vH, vL, vA = oT, getAngNorm(oT + 180), nil -- Normalize the high and low angle
-  elseif(nM == 3 or nM == 4) then -- Cross product [3], [4] (vector)
-    if(isWireZero(oT)) then return logStatus("High vector zero", oS) end
-    if(isWireZero(oA)) then return logStatus("Axis vector zero", oS) end
+  elseif(rT == "vector") then -- Cross product [3], [4] (vector)
+    if(isWireZero(oT)) then return logStatus("High ["..nM.."] vector zero", oS) end
+    if(isWireZero(oA)) then return logStatus("Axis ["..nM.."] vector zero", oS) end
     vH = setWireDiv({ oT[1], oT[2], oT[3]}) -- Nomalized top vector location
     vL = setWireDiv({-oT[1],-oT[2],-oT[3]}) -- Nomalized bottom vector location
     vA = setWireDiv({ oA[1], oA[2], oA[3]}) -- Nomalized axis vector
-  else return logStatus("Mode ["..tostring(nM).."] not supported", oS) end
-  return setData(oE, iD, {gtRoutines[nM][1], vH, vL, nM, vA})
+  else return logStatus("Mode ["..nM.."]["..rT.."] not supported", oS) end
+  return setData(oE, iD, {tR[1], vH, vL, nM, vA})
 end
 
 local function getPistonData(oE, iD, vR, iP)
@@ -263,7 +264,8 @@ end
 local function enSetupData(oE, iD, sT)
   if(not isValid(oE)) then return false end
   local nM = getPistonData(oE, iD, nil, 4)
-  return (sT == gtRoutines[nM][2])
+  local tR = gtRoutines[nM] -- Read routine
+  return (sT == tostring(tR and tR[2] or "xxx"))
 end
 
 --[[ **************************** GLOBALS ( BASE ENTITY ) **************************** ]]
