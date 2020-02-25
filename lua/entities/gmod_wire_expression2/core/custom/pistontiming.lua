@@ -262,7 +262,7 @@ local function setPistonData(oS, oE, iD, oT, nM, oA, oC)
   -- Sign [1], sine [2] ramp [5] troc [6] data type (number)
   if(rT == "number") then -- Check number internals
     vH, vL = oT, getAngNorm(oT + 180) -- Normalize the high and low angle
-    vC = math.Clamp(tonumber(oC) or 0, 0, 100) -- Store the tuning coefficient
+    vC = math.Clamp(tonumber(oC) or 0, 0, 500) -- Store the tuning coefficient
   elseif(rT == "vector") then -- Cross product [3], [4] (vector)
     if(isWireZero(oT)) then return logStatus("High ["..nM.."] vector zero", oS) end
     if(isWireZero(oA)) then return logStatus("Axis ["..nM.."] vector zero", oS) end
