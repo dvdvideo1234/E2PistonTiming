@@ -185,43 +185,59 @@ end
 
 -- Sign mode [nM=1] https://en.wikipedia.org/wiki/Square_wave
 gtRoutines[1] = {
-function(R, H, L, M, A)
+function(R, H, L, M, A, C)
   local nN = getAngNorm(R - H)
   return ((math.abs(nN) == 180) and 0 or getSign(nN))
 end, "number" }
 
 -- Wave mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
 gtRoutines[2] = {
-function(R, H, L, M, A)
+function(R, H, L, M, A, C)
   return math.sin(gnD2R * getAngNorm(R - H))
 end, "number" }
 
 -- Cross product wave mode [nM=3] https://en.wikipedia.org/wiki/Sine_wave
 gtRoutines[3] = {
-function(R, H, L, M, A)
+function(R, H, L, M, A, C)
   return getWireCross(R, H, A)
 end, "vector" }
 
 -- Cross product sign mode [nM=4] https://en.wikipedia.org/wiki/Square_wave
 gtRoutines[4] = {
-function(R, H, L, M, A)
+function(R, H, L, M, A, C)
   return getSign(getWireCross(R, H, A))
 end, "vector" }
 
 -- Direct ramp force mode [nM=5] https://en.wikipedia.org/wiki/Triangle_wave
 gtRoutines[5] = {
-function(R, H, L, M, A)
+function(R, H, L, M, A, C)
   return getRampNorm(R - H)
 end, "number" }
 
 -- Trochoid force mode [nM=6] https://en.wikipedia.org/wiki/Trochoid
 gtRoutines[6] = {
-function(R, H, L, M, A)
+function(R, H, L, M, A, C)
   local nP = getAngNorm(R - H)
   local nN = getRampNorm(R - H + 90)
   return getSign(nP) * math.sqrt(1 - nN^2)
 end, "number" }
 
+-- Trochoid force mode [nM=7] https://en.wikipedia.org/wiki/Square_root
+gtRoutines[7] = {
+function(R, H, L, M, A, C)
+  local nP = getRampNorm(R - H)
+  return (getSign(nP) * math.abs(nP)^0.5)
+end, "number" }
+
+-- Trochoid force mode [nM=8] https://en.wikipedia.org/wiki/Exponentiation
+gtRoutines[8] = { -- Change `C` (TUNE) to control exponential slope
+function(R, H, L, M, A, C)
+  local nR = getRampNorm(R - H)
+  local nA = C * math.abs(nR)
+  local nV = 1 - math.exp(-nA)
+  local nK = 1 - math.exp(-C)
+  return nV * getSign(nR) / nK
+end, "number" }
 
 --[[ **************************** WRAPPERS ****************************
 
@@ -234,16 +250,19 @@ end, "number" }
                            defined list of algorithms for obtaining the output function
  * oA (vector)         --> Engine rotational axis local direction vector relative to the
                            BASE prop entity used for projections
+ * oC (number)         --> General piston tuning coefficient used for routines setup
 ]]
-local function setPistonData(oS, oE, iD, oT, nM, oA)
+local function setPistonData(oS, oE, iD, oT, nM, oA, oC)
   if(not isValid(oE)) then return nil end
-  local tP, vL, vH, vA = getData(oE); if(not tP) then
+  local tP = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
-  local nM, rT = (tonumber(nM) or 0), nil -- Switch initialization mode
+  local vL, vH, vA, vC, rT -- Define local variables here
+  local nM = (tonumber(nM) or 0) -- Switch initialization mode
   local tR = gtRoutines[nM]; rT = tostring(tR and tR[2] or "xxx")
   -- Sign [1], sine [2] ramp [5] troc [6] data type (number)
   if(rT == "number") then -- Check number internals
-    vH, vL, vA = oT, getAngNorm(oT + 180), nil -- Normalize the high and low angle
+    vH, vL = oT, getAngNorm(oT + 180) -- Normalize the high and low angle
+    vC = math.Clamp(tonumber(oC) or 0, 0, 100) -- Store the tuning coefficient
   elseif(rT == "vector") then -- Cross product [3], [4] (vector)
     if(isWireZero(oT)) then return logStatus("High ["..nM.."] vector zero", oS) end
     if(isWireZero(oA)) then return logStatus("Axis ["..nM.."] vector zero", oS) end
@@ -251,7 +270,7 @@ local function setPistonData(oS, oE, iD, oT, nM, oA)
     vL = setWireDiv({-oT[1],-oT[2],-oT[3]}) -- Nomalized bottom vector location
     vA = setWireDiv({ oA[1], oA[2], oA[3]}) -- Nomalized axis vector
   else return logStatus("Mode ["..nM.."]["..rT.."] not supported", oS) end
-  return setData(oE, iD, {tR[1], vH, vL, nM, vA})
+  return setData(oE, iD, {tR[1], vH, vL, nM, vA, vC})
 end
 
 local function getPistonData(oE, iD, vR, iP)
@@ -260,7 +279,7 @@ local function getPistonData(oE, iD, vR, iP)
   if(not tP) then return 0 end
   if(iP) then return tP[iP] end
   if(not tP[1]) then return 0 end
-  return tP[1](vR, tP[2], tP[3], tP[4], tP[5])
+  return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
 end
 
 local function enSetupData(oE, iD, sT)
@@ -518,6 +537,36 @@ e2function entity entity:setPistonTroc(string iD, number nT)
   return setPistonData(self, this, iD, nT, 6)
 end
 
+__e2setcost(20)
+e2function entity entity:setPistonRoot(number iD, number nT)
+  return setPistonData(self, this, iD, nT, 7)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonRoot(string iD, number nT)
+  return setPistonData(self, this, iD, nT, 7)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonExpo(number iD, number nT)
+  return setPistonData(self, this, iD, nT, 8, nil, 10)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonExpo(string iD, number nT)
+  return setPistonData(self, this, iD, nT, 8, nil, 10)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonExpo(number iD, number nT, number nC)
+  return setPistonData(self, this, iD, nT, 8, nil, nC)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonExpo(string iD, number nT, number nC)
+  return setPistonData(self, this, iD, nT, 8, nil, nC)
+end
+
 --[[ **************************** CALCULATE **************************** ]]
 
 __e2setcost(5)
@@ -590,7 +639,7 @@ e2function vector entity:getPistonMinX(string iD)
   return getWireCopy(getPistonData(this, iD, nil, 3))
 end
 
---[[ **************************** READ CROSS PRODUCT AXIS **************************** ]]
+--[[ **************************** ADDITIONAL PARAMETERS **************************** ]]
 
 __e2setcost(5)
 e2function vector entity:getPistonAxis(number iD)
@@ -602,6 +651,18 @@ __e2setcost(5)
 e2function vector entity:getPistonAxis(string iD)
   if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
   return getWireCopy(getPistonData(this, iD, nil, 5))
+end
+
+__e2setcost(5)
+e2function number entity:getPistonTune(number iD)
+  if(not enSetupData(this, iD, "number")) then return 0 end
+  return getPistonData(this, iD, nil, 6)
+end
+
+__e2setcost(5)
+e2function number entity:getPistonTune(string iD)
+  if(not enSetupData(this, iD, "number")) then return 0 end
+  return getPistonData(this, iD, nil, 6)
 end
 
 --[[ **************************** MODES CHECK FLAGS **************************** ]]
@@ -664,6 +725,26 @@ end
 __e2setcost(2)
 e2function number entity:isPistonTroc(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 6) and 1 or 0)
+end
+
+__e2setcost(2)
+e2function number entity:isPistonRoot(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 7) and 1 or 0)
+end
+
+__e2setcost(2)
+e2function number entity:isPistonRoot(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 7) and 1 or 0)
+end
+
+__e2setcost(2)
+e2function number entity:isPistonExpo(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 8) and 1 or 0)
+end
+
+__e2setcost(2)
+e2function number entity:isPistonExpo(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 8) and 1 or 0)
 end
 
 --[[ **************************** DELETE **************************** ]]
