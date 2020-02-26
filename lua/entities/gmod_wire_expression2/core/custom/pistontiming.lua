@@ -302,9 +302,8 @@ end
 __e2setcost(1)
 e2function entity entity:setPistonBase(entity oB)
   if(not isValid(this)) then return nil end
-  if(not isValid(oB)) then return this end
   local tSpot = getExpressionSpot(self)
-  tSpot.Base = oB; return this
+  tSpot.Base = (isValid(oB) and oB or this); return this
 end
 
 __e2setcost(1)
