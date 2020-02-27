@@ -9,8 +9,8 @@
 if(first() || dupefinished())
 {
     runOnTick(1)
-    Chip = entity()
     Mul = 5
+    Chip = entity()
     Chip:setPistonSign(1, -18.59)
 }
 

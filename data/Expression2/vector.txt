@@ -7,13 +7,13 @@
 if(first() || dupefinished())
 {
     runOnTick(1)
+    Mul = 60
     Chip = entity()
     Base = Chip:isConstrainedTo("axis")
     Shaft = Crank:entity()
-    Mul = 60
-    Base:setPistonBase()
-    Base:setPistonAxis(0,1,0)
-    Base:setPistonMark(1,0,0)
+    setPistonBase(Base)
+    setPistonAxis(0,1,0)
+    setPistonMark(1,0,0)
     Shaft:setPistonWaveX(1, vec(-0.42940521240234,0,-0.9033203125))
 }
 

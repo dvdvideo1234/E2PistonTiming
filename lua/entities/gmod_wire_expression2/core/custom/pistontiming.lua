@@ -104,9 +104,9 @@ end
 
 --[[
 Calculates vector cross product vua axis and highest point
- * tR -> Wiremod vector type of the roll marker
- * tH -> Wiremod vector type of the highest point
- * tA -> Wiremod vector type of the shaft rotation axis
+ * tR -> Wiremod vector type of the SHAFT roll marker relative to BASE
+ * tH -> Wiremod vector type of the piston highest point relative to BASE
+ * tA -> Wiremod vector type of the rotation axis relative to BASE
 ]]
 local gvRoll, gvHigh, gvAxis = Vector(), Vector(), Vector()
 local function getWireCross(tR, tH, tA)
@@ -122,8 +122,8 @@ Allocates/Indexes memory location for given expression chip
 ]]
 function getExpressionSpot(oSelf)
   local oRefr = oSelf.entity      -- Pick a key reference
-  local tSpot = gtChipInfo[oRefr] -- Index the expression spot
-  if(not tSpot) then              -- Check expression chip spot
+  local tSpot = gtChipInfo[oRefr] -- Index the expression chip spot
+  if(not tSpot) then              -- Check expression chip spot presence
     gtChipInfo[oRefr] = {}        -- Allocate table when not available
     tSpot = gtChipInfo[oRefr]     -- Refer the allocated table to store into
     tSpot.Axis = {0,0,0}          -- Rotation axis stored as a local vector relative to BASE
@@ -135,7 +135,7 @@ end
 
 --[[
 Converts the mark vector local to the SHAFT entity to
-a mark vector local to the base entity
+a mark vector local to the BASE entity
  * tV -> Mark as regular wire vector data type
  * oE -> The entity used as an engine SHAFT prop
  * oB -> The entity used as an engine BASE prop
@@ -151,9 +151,9 @@ local function getMarkBase(tV, oE, oB)
 end
 
 --[[
-Reads the piston data from crankshaft entity placeholder
-If the iD is not provided returns all crankshaft modifications
- * oE -> The crankshaft entity to check
+Reads the piston data from SHAFT entity placeholder
+If the iD is not provided returns all SHAFT modifications
+ * oE -> The SHAFT entity to check and extract
  * iD -> The piston data to be checked and returned
 ]]
 local function getData(oE, iD) local tP = oE[gsKey]
@@ -161,15 +161,15 @@ local function getData(oE, iD) local tP = oE[gsKey]
 end
 
 --[[
-Writes the piston data to crankshaft entity placeholder
-If the iD is not provided writes to crankshaft placeholder
- * oE -> The crankshaft entity to be indexed
+Writes the piston data to the SHAFT entity placeholder
+If the iD is not provided writes to the SHAFT placeholder
+ * oE -> The SHAFT entity to be indexed
  * iD -> The piston key to be used for indexing
  * oV -> The value to be written in the placeholder
 ]]
 local function setData(oE, iD, oV)
   if(iD) then oE[gsKey][iD] = oV else oE[gsKey] = oV end
-  return oE -- Return crankshaft entity
+  return oE -- Return the SHAFT entity
 end
 
 --[[ **************************** PISTON ROUTINES ****************************
@@ -241,7 +241,7 @@ end, "number" }
 --[[ **************************** WRAPPERS ****************************
 
  * oS (expression)     --> The instance table of the E2 chip itself
- * oE (entity)         --> Entity of the engine crankshaft. Usually also the engine E2 prop.
+ * oE (entity)         --> Entity of the engine SHAFT. Usually also the engine E2 prop.
  * iD (number, string) --> Key to store the data by. Either string or a number.
  * oT (number, vector) --> Top location of the piston in degrees or
                            local direction vector relative to the BASE prop entity.
@@ -288,161 +288,138 @@ local function enSetupData(oE, iD, sT)
   return (sT == tostring(tR and tR[2] or ""))
 end
 
---[[ **************************** GLOBALS ( SHAFT MARK ) **************************** ]]
+--[[ **************************** GLOBALS ( EXPONENT TUNE ) **************************** ]]
 
 __e2setcost(1)
-e2function entity entity:setPistonTune(number nC)
-  if(not isValid(this)) then return nil end
+e2function void setPistonTune(number nC)
   local tSpot = getExpressionSpot(self)
-  tSpot.Tune = math.Clamp(tonumber(nC) or 0, 0, 500); return this
+  tSpot.Tune = math.Clamp(tonumber(nC) or 0, 0, 500)
+end
+
+__e2setcost(1)
+e2function void resPistonTune()
+  local tSpot = getExpressionSpot(self)
+  tSpot.Tune = 10 -- Restore the default value
 end
 
 --[[ **************************** GLOBALS ( BASE ENTITY ) **************************** ]]
 
 __e2setcost(1)
-e2function entity entity:setPistonBase(entity oB)
-  if(not isValid(this)) then return nil end
+e2function void setPistonBase(entity oB)
   local tSpot = getExpressionSpot(self)
-  tSpot.Base = (isValid(oB) and oB or this); return this
+  tSpot.Base  = (isValid(oB) and oB or nil)
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonBase()
-  if(not isValid(this)) then return nil end
+e2function void resPistonBase()
   local tSpot = getExpressionSpot(self)
-  tSpot.Base = this; return this
+  tSpot.Base  = nil
 end
 
 __e2setcost(1)
-e2function entity entity:resPistonBase()
-  if(not isValid(this)) then return nil end
+e2function entity getPistonBase()
   local tSpot = getExpressionSpot(self)
-  tSpot.Base  = nil; return this
-end
-
-__e2setcost(1)
-e2function entity entity:getPistonBase()
-  if(not isValid(this)) then return nil end
-  local tSpot = getExpressionSpot(self)
-  local oB = tSpot.Base -- Read base entity
-  if(isValid(oB)) then return oB end
-  return nil -- There is no valid base entity
+  return tSpot.Base
 end
 
 --[[ **************************** GLOBALS ( BASE AXIS ) **************************** ]]
 
 __e2setcost(5)
-e2function vector entity:getPistonAxis()
-  if(not isValid(this)) then return nil end
+e2function vector getPistonAxis()
   local tSpot = getExpressionSpot(self)
-  return tSpot.Axis
+  return getWireCopy(tSpot.Axis)
 end
 
 __e2setcost(1)
-e2function entity entity:resPistonAxis()
-  if(not isValid(this)) then return nil end
+e2function void resPistonAxis()
   local tSpot = getExpressionSpot(self)
-  setWireXYZ(tSpot.Axis, 0, 0, 0); return this
+  setWireXYZ(tSpot.Axis, 0, 0, 0)
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonAxis(vector vA)
-  if(not isValid(this)) then return nil end
+e2function void setPistonAxis(vector vA)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3])); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3]))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonAxis(vector2 vA)
-  if(not isValid(this)) then return nil end
+e2function void setPistonAxis(vector2 vA)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], 0))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonAxis(array vA)
-  if(not isValid(this)) then return nil end
+e2function void setPistonAxis(array vA)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3])); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, vA[1], vA[2], vA[3]))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonAxis(number nX, number nY, number nZ)
-  if(not isValid(this)) then return nil end
+e2function void setPistonAxis(number nX, number nY, number nZ)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Axis, nX, nY, nZ)); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, nX, nY, nZ))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonAxis(number nX, number nY)
-  if(not isValid(this)) then return nil end
+e2function void setPistonAxis(number nX, number nY)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Axis, nX, nY, 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, nX, nY, 0))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonAxis(number nX)
-  if(not isValid(this)) then return nil end
+e2function void setPistonAxis(number nX)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Axis, nX, 0, 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Axis, nX, 0, 0))
 end
 
 --[[ **************************** GLOBALS ( SHAFT MARK ) **************************** ]]
 
 __e2setcost(5)
-e2function vector entity:getPistonMark()
-  if(not isValid(this)) then return nil end
+e2function vector getPistonMark()
   local tSpot = getExpressionSpot(self)
-  return tSpot.Mark
+  return getWireCopy(tSpot.Mark)
 end
 
 __e2setcost(1)
-e2function entity entity:resPistonMark()
-  if(not isValid(this)) then return nil end
+e2function void resPistonMark()
   local tSpot = getExpressionSpot(self)
-  setWireXYZ(tSpot.Mark, 0, 0, 0); return this
+  setWireXYZ(tSpot.Mark, 0, 0, 0)
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonMark(vector vM)
-  if(not isValid(this)) then return nil end
+e2function void setPistonMark(vector vM)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3])); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3]))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonMark(vector2 vM)
-  if(not isValid(this)) then return nil end
+e2function void setPistonMark(vector2 vM)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], 0))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonMark(array vM)
-  if(not isValid(this)) then return nil end
+e2function void setPistonMark(array vM)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3])); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, vM[1], vM[2], vM[3]))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonMark(number nX, number nY, number nZ)
-  if(not isValid(this)) then return nil end
+e2function void setPistonMark(number nX, number nY, number nZ)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Mark, nX, nY, nZ)); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, nX, nY, nZ))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonMark(number nX, number nY)
-  if(not isValid(this)) then return nil end
+e2function void setPistonMark(number nX, number nY)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Mark, nX, nY, 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, nX, nY, 0))
 end
 
 __e2setcost(1)
-e2function entity entity:setPistonMark(number nX)
-  if(not isValid(this)) then return nil end
+e2function void setPistonMark(number nX)
   local tSpot = getExpressionSpot(self)
-  setWireDiv(setWireXYZ(tSpot.Mark, nX, 0, 0)); return this
+  setWireDiv(setWireXYZ(tSpot.Mark, nX, 0, 0))
 end
 
 --[[ **************************** LOCALS ( SHAFT MARK ) **************************** ]]
@@ -454,28 +431,24 @@ end
 
 __e2setcost(6)
 e2function vector entity:cnvPistonMark(vector vM)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return getMarkBase(vM, this, tSpot.Base)
 end
 
 __e2setcost(7)
 e2function vector entity:cnvPistonMark(number nX, number nY, number nZ)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return getMarkBase(getWireXYZ(nX, nY, nZ), this, tSpot.Base)
 end
 
 __e2setcost(6)
 e2function vector entity:cnvPistonMark(entity oB)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return getMarkBase(tSpot.Mark, this, oB)
 end
 
 __e2setcost(6)
 e2function vector entity:cnvPistonMark()
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return getMarkBase(tSpot.Mark, this, tSpot.Base)
 end
@@ -504,14 +477,12 @@ end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(number iD, vector vT)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return setPistonData(self, this, iD, vT, 3, tSpot.Axis)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonWaveX(string iD, vector vT)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return setPistonData(self, this, iD, vT, 3, tSpot.Axis)
 end
@@ -528,14 +499,12 @@ end
 
 __e2setcost(20)
 e2function entity entity:setPistonSignX(number iD, vector vT)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return setPistonData(self, this, iD, vT, 4, tSpot.Axis)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonSignX(string iD, vector vT)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return setPistonData(self, this, iD, vT, 4, tSpot.Axis)
 end
@@ -582,14 +551,12 @@ end
 
 __e2setcost(20)
 e2function entity entity:setPistonExpo(number iD, number nT)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return setPistonData(self, this, iD, nT, 8, nil, tSpot.Tune)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonExpo(string iD, number nT)
-  if(not isValid(this)) then return nil end
   local tSpot = getExpressionSpot(self)
   return setPistonData(self, this, iD, nT, 8, nil, tSpot.Tune)
 end
@@ -789,24 +756,24 @@ end
 __e2setcost(5)
 e2function entity entity:remPiston(number iD)
   if(not isValid(this)) then return nil end
-  local tP = getData(this)
-  if(not tP) then return this end
-  return setData(this, iD)
+  local tP = getData(this) -- Are there any pistons
+  if(not tP) then return this end -- No pistins here
+  return setData(this, iD) -- Wipe the piston indexed
 end
 
 __e2setcost(5)
 e2function entity entity:remPiston(string iD)
   if(not isValid(this)) then return nil end
-  local tP = getData(this)
-  if(not tP) then return this end
-  return setData(this, iD)
+  local tP = getData(this) -- Are there any pistons
+  if(not tP) then return this end -- No pistins here
+  return setData(this, iD) -- Wipe the piston indexed
 end
 
 __e2setcost(5)
 e2function entity entity:clrPiston()
-  if(not isValid(this)) then return nil end
-  if(not getData(this)) then return nil end
-  return setData(this)
+  if(not isValid(this)) then return nil end -- Vaid SHAFT
+  if(not getData(this)) then return nil end -- Check pistins
+  return setData(this) -- Wipe all pistin data in the SHAFT
 end
 
 --[[ **************************** PISTONS COUNT **************************** ]]
@@ -815,7 +782,7 @@ __e2setcost(10)
 e2function number entity:cntPiston()
   if(not isValid(this)) then return 0 end
   local tP = getData(this); if(not tP) then return 0 end
-  return #tP
+  return #tP -- Return the sequential pistons count
 end
 
 __e2setcost(15)
@@ -823,5 +790,5 @@ e2function number entity:allPiston()
   if(not isValid(this)) then return 0 end
   local tP = getData(this); if(not tP) then return 0 end
   local iP = 0; for key, val in pairs(tP) do iP = iP + 1 end
-  return iP
+  return iP -- Return all the pistons count
 end
