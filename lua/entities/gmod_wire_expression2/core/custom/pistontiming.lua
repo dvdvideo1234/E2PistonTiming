@@ -97,9 +97,8 @@ Calculates normalized ramp output of the roll marker period
  * nP -> The roll marker period of the marker offset (R - H)
 ]]
 local function getRampNorm(nP)
-  local nN = getAngNorm(nP)
-  local nA, nM = -getAngNorm(nN + 180), math.abs(nN)
-  return (((nM > 90) and nA or nN) / 90)
+  local nF, nB = getAngNorm(nP), -getAngNorm(nP + 180)
+  return (((math.abs(nF) > 90) and nB or nF) / 90)
 end
 
 --[[
@@ -128,7 +127,8 @@ function getExpressionSpot(oSelf)
     tSpot = gtChipInfo[oRefr]     -- Refer the allocated table to store into
     tSpot.Axis = {0,0,0}          -- Rotation axis stored as a local vector relative to BASE
     tSpot.Mark = {0,0,0}          -- Roll zero-mark stored as a local vector relative to SHAFT
-    tSpot.Tune = 10               -- Global coefficient for exponential timed piston
+    tSpot.Expc = 10               -- Global coefficient for exponential timed piston
+    tSpot.Logc = 10               -- Global coefficient for logarithmic timed piston
     tSpot.Base = nil              -- Entity for overloading and also the engine BASE entity
   end; return tSpot               -- Return expression chip dedicated spot
 end
@@ -184,58 +184,66 @@ end
 
 -- Sign mode [nM=1] https://en.wikipedia.org/wiki/Square_wave
 gtRoutines[1] = {
-function(R, H, L, M, A, C)
+function(R, H, L, M, A, cE, cL)
   local nN = getAngNorm(R - H)
   return ((math.abs(nN) == 180) and 0 or getSign(nN))
 end, "number" }
 
 -- Wave mode [nM=2] https://en.wikipedia.org/wiki/Sine_wave
 gtRoutines[2] = {
-function(R, H, L, M, A, C)
+function(R, H, L, M, A, cE, cL)
   return math.sin(gnD2R * getAngNorm(R - H))
 end, "number" }
 
 -- Cross product wave mode [nM=3] https://en.wikipedia.org/wiki/Sine_wave
 gtRoutines[3] = {
-function(R, H, L, M, A, C)
+function(R, H, L, M, A, cE, cL)
   return getWireCross(R, H, A)
 end, "vector" }
 
 -- Cross product sign mode [nM=4] https://en.wikipedia.org/wiki/Square_wave
 gtRoutines[4] = {
-function(R, H, L, M, A, C)
+function(R, H, L, M, A, cE, cL)
   return getSign(getWireCross(R, H, A))
 end, "vector" }
 
 -- Direct ramp force mode [nM=5] https://en.wikipedia.org/wiki/Triangle_wave
 gtRoutines[5] = {
-function(R, H, L, M, A, C)
+function(R, H, L, M, A, cE, cL)
   return getRampNorm(R - H)
 end, "number" }
 
 -- Trochoid force mode [nM=6] https://en.wikipedia.org/wiki/Trochoid
 gtRoutines[6] = {
-function(R, H, L, M, A, C)
+function(R, H, L, M, A, cE, cL)
   local nP = getAngNorm(R - H)
   local nN = getRampNorm(R - H + 90)
   return getSign(nP) * math.sqrt(1 - nN^2)
 end, "number" }
 
--- Trochoid force mode [nM=7] https://en.wikipedia.org/wiki/Square_root
+-- Square root force mode [nM=7] https://en.wikipedia.org/wiki/Square_root
 gtRoutines[7] = {
-function(R, H, L, M, A, C)
+function(R, H, L, M, A, cE, cL)
   local nP = getRampNorm(R - H)
   return (getSign(nP) * math.abs(nP)^0.5)
 end, "number" }
 
--- Trochoid force mode [nM=8] https://en.wikipedia.org/wiki/Exponentiation
-gtRoutines[8] = { -- Change `C` (TUNE) to control exponential slope
-function(R, H, L, M, A, C)
+-- Exponential force mode [nM=8] https://en.wikipedia.org/wiki/Exponentiation
+gtRoutines[8] = { -- Change `cE` to control exponential slope
+function(R, H, L, M, A, cE, cL)
   local nR = getRampNorm(R - H)
-  local nA = C * math.abs(nR)
-  local nV = 1 - math.exp(-nA)
-  local nK = 1 - math.exp(-C)
-  return nV * getSign(nR) / nK
+  if(cE <= 0) then return nR end
+  local nA, nK = (cE * math.abs(nR)), (1 - math.exp(-cE))
+  return (1 - math.exp(-nA)) * getSign(nR) / nK
+end, "number" }
+
+-- Logarithmic force mode [nM=9] https://en.wikipedia.org/wiki/Logarithm
+gtRoutines[9] = { -- Change `cL` to control logarithmic slope
+function(R, H, L, M, A, cE, cL)
+  local nR = getRampNorm(R - H)
+  if(cL <= 0) then return nR end; nR = nR * cL
+  local nS, nL = getSign(nR), math.log(cL + 1)
+  return (math.log(math.abs(nR) + 1) * nS) / nL
 end, "number" }
 
 --[[ **************************** WRAPPERS ****************************
@@ -249,19 +257,21 @@ end, "number" }
                            defined list of algorithms for obtaining the output function
  * oA (vector)         --> Engine rotational axis local direction vector relative to the
                            BASE prop entity used for projections
- * oC (number)         --> General piston tuning coefficient used for routines setup
+ * oCe (number)        --> General piston tuning coefficient used for exponential routines setup
+ * oCl (number)        --> General piston tuning coefficient used for logarithmic routines setup
 ]]
-local function setPistonData(oS, oE, iD, oT, nM, oA, oC)
+local function setPistonData(oS, oE, iD, oT, nM, oA, oCe, oCl)
   if(not isValid(oE)) then return nil end
   local tP = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
-  local vL, vH, vA, vC, rT -- Define local variables here
+  local vL, vH, vA, vCe, vCl, rT -- Define local variables here
   local nM = (tonumber(nM) or 0) -- Switch initialization mode
   local tR = gtRoutines[nM]; rT = tostring(tR and tR[2] or "xxx")
   -- Sign [1], sine [2] ramp [5] troc [6] data type (number)
   if(rT == "number") then -- Check number internals
     vH, vL = oT, getAngNorm(oT + 180) -- Normalize the high and low angle
-    vC = math.Clamp(tonumber(oC) or 0, 0, 500) -- Store the tuning coefficient
+    vCe = math.Clamp(tonumber(oCe) or 0, 0, 500) -- Store the tuning coefficient
+    vCl = math.Clamp(tonumber(oCl) or 0, 0, 500) -- Store the tuning coefficient
   elseif(rT == "vector") then -- Cross product [3], [4] (vector)
     if(isWireZero(oT)) then return logStatus("High ["..nM.."] vector zero", oS) end
     if(isWireZero(oA)) then return logStatus("Axis ["..nM.."] vector zero", oS) end
@@ -269,7 +279,7 @@ local function setPistonData(oS, oE, iD, oT, nM, oA, oC)
     vL = setWireDiv({-oT[1],-oT[2],-oT[3]}) -- Nomalized bottom vector location
     vA = setWireDiv({ oA[1], oA[2], oA[3]}) -- Nomalized axis vector
   else return logStatus("Mode ["..nM.."]["..rT.."] not supported", oS) end
-  return setData(oE, iD, {tR[1], vH, vL, nM, vA, vC})
+  return setData(oE, iD, {tR[1], vH, vL, nM, vA, vCe, vCl})
 end
 
 local function getPistonData(oE, iD, vR, iP)
@@ -278,7 +288,7 @@ local function getPistonData(oE, iD, vR, iP)
   if(not tP) then return 0 end
   if(iP) then return tP[iP] end
   if(not tP[1]) then return 0 end
-  return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
+  return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6], tP[7])
 end
 
 local function enSetupData(oE, iD, sT)
@@ -291,15 +301,29 @@ end
 --[[ **************************** GLOBALS ( EXPONENT TUNE ) **************************** ]]
 
 __e2setcost(1)
-e2function void setPistonTune(number nC)
+e2function void setPistonExpc(number nC)
   local tSpot = getExpressionSpot(self)
-  tSpot.Tune = math.Clamp(tonumber(nC) or 0, 0, 500)
+  tSpot.Expc = math.Clamp(tonumber(nC) or 0, 0, 500)
 end
 
 __e2setcost(1)
-e2function void resPistonTune()
+e2function void resPistonExpc()
   local tSpot = getExpressionSpot(self)
-  tSpot.Tune = 10 -- Restore the default value
+  tSpot.Expc = 10 -- Restore the default value
+end
+
+--[[ **************************** GLOBALS ( LOGARITHM TUNE ) **************************** ]]
+
+__e2setcost(1)
+e2function void setPistonLogc(number nC)
+  local tSpot = getExpressionSpot(self)
+  tSpot.Logc = math.Clamp(tonumber(nC) or 0, 0, 500)
+end
+
+__e2setcost(1)
+e2function void resPistonLogc()
+  local tSpot = getExpressionSpot(self)
+  tSpot.Logc = 10 -- Restore the default value
 end
 
 --[[ **************************** GLOBALS ( BASE ENTITY ) **************************** ]]
@@ -552,13 +576,13 @@ end
 __e2setcost(20)
 e2function entity entity:setPistonExpo(number iD, number nT)
   local tSpot = getExpressionSpot(self)
-  return setPistonData(self, this, iD, nT, 8, nil, tSpot.Tune)
+  return setPistonData(self, this, iD, nT, 8, nil, tSpot.Expc)
 end
 
 __e2setcost(20)
 e2function entity entity:setPistonExpo(string iD, number nT)
   local tSpot = getExpressionSpot(self)
-  return setPistonData(self, this, iD, nT, 8, nil, tSpot.Tune)
+  return setPistonData(self, this, iD, nT, 8, nil, tSpot.Expc)
 end
 
 __e2setcost(20)
@@ -570,6 +594,29 @@ __e2setcost(20)
 e2function entity entity:setPistonExpo(string iD, number nT, number nC)
   return setPistonData(self, this, iD, nT, 8, nil, nC)
 end
+
+__e2setcost(20)
+e2function entity entity:setPistonLogn(number iD, number nT)
+  local tSpot = getExpressionSpot(self)
+  return setPistonData(self, this, iD, nT, 9, nil, tSpot.Logc)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonLogn(string iD, number nT)
+  local tSpot = getExpressionSpot(self)
+  return setPistonData(self, this, iD, nT, 9, nil, tSpot.Logc)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonLogn(number iD, number nT, number nC)
+  return setPistonData(self, this, iD, nT, 9, nil, nC)
+end
+
+__e2setcost(20)
+e2function entity entity:setPistonLogn(string iD, number nT, number nC)
+  return setPistonData(self, this, iD, nT, 9, nil, nC)
+end
+
 
 --[[ **************************** CALCULATE **************************** ]]
 
@@ -658,15 +705,27 @@ e2function vector entity:getPistonAxis(string iD)
 end
 
 __e2setcost(5)
-e2function number entity:getPistonTune(number iD)
+e2function number entity:getPistonExpc(number iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
   return getPistonData(this, iD, nil, 6)
 end
 
 __e2setcost(5)
-e2function number entity:getPistonTune(string iD)
+e2function number entity:getPistonExpc(string iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
   return getPistonData(this, iD, nil, 6)
+end
+
+__e2setcost(5)
+e2function number entity:getPistonLogc(number iD)
+  if(not enSetupData(this, iD, "number")) then return 0 end
+  return getPistonData(this, iD, nil, 7)
+end
+
+__e2setcost(5)
+e2function number entity:getPistonLogc(string iD)
+  if(not enSetupData(this, iD, "number")) then return 0 end
+  return getPistonData(this, iD, nil, 7)
 end
 
 --[[ **************************** MODES CHECK FLAGS **************************** ]]
@@ -750,6 +809,17 @@ __e2setcost(2)
 e2function number entity:isPistonExpo(string iD)
   return (((getPistonData(this, iD, nil, 4) or 0) == 8) and 1 or 0)
 end
+
+__e2setcost(2)
+e2function number entity:isPistonLogn(number iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 9) and 1 or 0)
+end
+
+__e2setcost(2)
+e2function number entity:isPistonLogn(string iD)
+  return (((getPistonData(this, iD, nil, 4) or 0) == 9) and 1 or 0)
+end
+
 
 --[[ **************************** DELETE **************************** ]]
 
