@@ -224,7 +224,7 @@ end, "number" }
 gtRoutines[7] = { -- Change `cP` to control power slope r^x
 function(R, H, L, M, A, N)
   local nP = getRampNorm(R - H)
-  return (getSign(nP) * math.abs(nP)^cP)
+  return (getSign(nP) * math.abs(nP)^N)
 end, "number" }
 
 -- Exponential force mode [nM=8] https://en.wikipedia.org/wiki/Exponentiation
@@ -245,11 +245,11 @@ function(R, H, L, M, A, N)
   return (math.log(math.abs(nR) + 1) * nS) / nL
 end, "number" }
 
--- Logarithmic force mode [nM=10] https://en.wikipedia.org/wiki/Logarithm
+-- Trapezoidal force mode [nM=10] https://en.wikipedia.org/wiki/Trapezoid
 gtRoutines[10] = { -- Change `N` to control trapezoidal slope
 function(R, H, L, M, A, N)
   local nR = getRampNorm(R - H)
-  return ((N < 1) and 1 or math.Clamp(nR * N, -1, 1))
+  return ((N < 1) and nR or math.Clamp(nR * N, -1, 1))
 end, "number" }
 
 
@@ -279,9 +279,9 @@ local function setPistonData(oS, oE, iD, oT, nM, oA, oN)
   elseif(rT == "vector") then -- Cross product [3], [4] (vector)
     if(isWireZero(oT)) then return logStatus("High ["..nM.."] vector zero", oS) end
     if(isWireZero(oA)) then return logStatus("Axis ["..nM.."] vector zero", oS) end
-    vH = setWireDiv({ oT[1], oT[2], oT[3]}) -- Nomalized top vector location
-    vL = setWireDiv({-oT[1],-oT[2],-oT[3]}) -- Nomalized bottom vector location
-    vA = setWireDiv({ oA[1], oA[2], oA[3]}) -- Nomalized axis vector
+    vH = setWireDiv(getWireXYZ( oT[1], oT[2], oT[3])) -- Nomalized top vector location
+    vL = setWireDiv(getWireXYZ(-oT[1],-oT[2],-oT[3])) -- Nomalized bottom vector location
+    vA = setWireDiv(getWireXYZ( oA[1], oA[2], oA[3])) -- Nomalized axis vector
   else return logStatus("Mode ["..nM.."]["..rT.."] not supported", oS) end
   return setData(oE, iD, {tR[1], vH, vL, nM, vA, vN})
 end
