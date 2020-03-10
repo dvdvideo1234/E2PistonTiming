@@ -249,8 +249,7 @@ end, "number" }
 gtRoutines[10] = { -- Change `N` to control trapezoidal slope
 function(R, H, L, M, A, N)
   local nR = getRampNorm(R - H)
-  if(N < 1) then return nR end
-  return math.Clamp(nR * N, -1, 1)
+  return ((N < 1) and 1 or math.Clamp(nR * N, -1, 1))
 end, "number" }
 
 
@@ -308,7 +307,7 @@ end
 __e2setcost(1)
 e2function void setPistonTune(number nN)
   local tSpot = getExpressionSpot(self)
-  tSpot.Tune = math.Clamp(tonumber(nC) or 0, 0, 500)
+  tSpot.Tune = math.Clamp(tonumber(nN) or 0, 0, 500)
 end
 
 __e2setcost(1)
