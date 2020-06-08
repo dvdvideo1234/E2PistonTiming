@@ -19,14 +19,16 @@ local varDefPrint = CreateConVar(gsKey.."_dprn", "TALK", gnServerControled, "FTr
 local gsFormLogs  = "E2{%s}{%s}:piston: %s" -- Contains the logs format of the addon
 local gsDefPrint  = varDefPrint:GetString() -- Default print location
 local gtPrintName = {} -- Contains the print location specification
-      gtPrintName["NOTIFY" ] = HUD_PRINTNOTIFY
-      gtPrintName["CONSOLE"] = HUD_PRINTCONSOLE
-      gtPrintName["TALK"   ] = HUD_PRINTTALK
-      gtPrintName["CENTER" ] = HUD_PRINTCENTER
+
+--[[ **************************** CONFIGURATION **************************** ]]
+
+gtPrintName["NOTIFY" ] = HUD_PRINTNOTIFY
+gtPrintName["CONSOLE"] = HUD_PRINTCONSOLE
+gtPrintName["TALK"   ] = HUD_PRINTTALK
+gtPrintName["CENTER" ] = HUD_PRINTCENTER
 
 --[[ **************************** CALLBACKS **************************** ]]
 
-gsVarName = varDefPrint:GetName()
 cvars.RemoveChangeCallback(varDefPrint:GetName(), varDefPrint:GetName().."_call")
 cvars.AddChangeCallback(varDefPrint:GetName(), function(sVar, vOld, vNew)
   local sK = tostring(vNew):upper(); if(gtPrintName[sK]) then gsDefPrint = sK end
