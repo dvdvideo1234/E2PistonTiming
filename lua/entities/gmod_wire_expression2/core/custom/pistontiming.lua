@@ -122,7 +122,7 @@ end
 Allocates/Indexes memory location for given expression chip
  * oSelf -> Reference to the current expression chip allocated/indexed
 ]]
-function getExpressionSpot(oSelf)
+local function getExpressionSpot(oSelf)
   local oRefr = oSelf.entity      -- Pick a key reference
   local tSpot = gtChipInfo[oRefr] -- Index the expression chip spot
   if(not tSpot) then              -- Check expression chip spot presence
