@@ -11,6 +11,7 @@ local gnIndependentUsed = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEON
 local gnServerControled = bit.bor(FCVAR_ARCHIVE, FCVAR_NOTIFY, FCVAR_PRINTABLEONLY, FCVAR_REPLICATED)
 
 local gnD2R       = (math.pi / 180)
+local gsInvType   = "xxxxxx"
 local gsKey       = "wire_expression2_pistontiming"
 local gtChipInfo  = {} -- Stores the global information for every E2
 local gtRoutines  = {} -- Stores global piston routines information
@@ -104,7 +105,7 @@ local function getRampNorm(nP)
 end
 
 --[[
-Calculates vector cross product vua axis and highest point
+Calculates vector cross product via axis and highest point
  * tR -> Wiremod vector type of the SHAFT roll marker relative to BASE
  * tH -> Wiremod vector type of the piston highest point relative to BASE
  * tA -> Wiremod vector type of the rotation axis relative to BASE
@@ -222,13 +223,15 @@ function(R, H, L, M, A, N)
   return getSign(nP) * math.sqrt(1 - nN^2)
 end, "number" }
 
+-- https://github.com/dvdvideo1234/E2PistonTiming/blob/master/data/pictures/power_coefficient.PNG
 -- Power force mode [nM=7] https://en.wikipedia.org/wiki/Exponentiation
-gtRoutines[7] = { -- Change `cP` to control power slope r^x
+gtRoutines[7] = { -- Change `N` to control power slope r^x
 function(R, H, L, M, A, N)
   local nP = getRampNorm(R - H)
   return (getSign(nP) * math.abs(nP)^N)
 end, "number" }
 
+-- https://github.com/dvdvideo1234/E2PistonTiming/blob/master/data/pictures/exponential_coefficient.PNG
 -- Exponential force mode [nM=8] https://en.wikipedia.org/wiki/Exponentiation
 gtRoutines[8] = { -- Change `N` to control exponential slope of e^x
 function(R, H, L, M, A, N)
@@ -238,6 +241,7 @@ function(R, H, L, M, A, N)
   return (1 - math.exp(-nA)) * getSign(nR) / nK
 end, "number" }
 
+-- https://github.com/dvdvideo1234/E2PistonTiming/blob/master/data/pictures/logarithmic_coefficient.PNG
 -- Logarithmic force mode [nM=9] https://en.wikipedia.org/wiki/Logarithm
 gtRoutines[9] = { -- Change `N` to control logarithmic slope
 function(R, H, L, M, A, N)
@@ -247,11 +251,12 @@ function(R, H, L, M, A, N)
   return (math.log(math.abs(nR) + 1) * nS) / nL
 end, "number" }
 
+-- https://github.com/dvdvideo1234/E2PistonTiming/blob/master/data/pictures/trapezoidal_coefficient.PNG
 -- Trapezoidal force mode [nM=10] https://en.wikipedia.org/wiki/Trapezoid
 gtRoutines[10] = { -- Change `N` to control trapezoidal slope
 function(R, H, L, M, A, N)
   local nR = getRampNorm(R - H)
-  return ((N < 1) and nR or math.Clamp(nR * N, -1, 1))
+  return ((N <= 0) and nR or math.Clamp(nR * N, -1, 1))
 end, "number" }
 
 
@@ -272,36 +277,44 @@ local function setPistonData(oS, oE, iD, oT, nM, oA, oN)
   local tP = getData(oE); if(not tP) then
     setData(oE, nil, {}); tP = getData(oE) end
   local vL, vH, vA, vN, rT -- Define local variables here
-  local nM = (tonumber(nM) or 0) -- Switch initialization mode
-  local tR = gtRoutines[nM]; rT = tostring(tR and tR[2] or "xxx")
+  local nM = (tonumber(nM) or 0) -- Read initialization mode
+  local tR = gtRoutines[nM]; if(not tR) then
+    return logStatus("Mode ["..nM.."] routine missing", oS) end
+  local rF, rT = tR[1], tostring(tR[2] or gsInvType) -- Read routine parameters
+  if(not rF) then return logStatus("Mode ["..nM.."] routine function missing", oS) end
   -- Sign [1], sine [2] ramp [5] troc [6] data type (number)
   if(rT == "number") then -- Check number internals
     vH, vL = oT, getAngNorm(oT + 180) -- Normalize the high and low angle
     vN = math.Clamp(tonumber(oN) or 0, 0, 500) -- Store the tuning coefficient
   elseif(rT == "vector") then -- Cross product [3], [4] (vector)
-    if(isWireZero(oT)) then return logStatus("High ["..nM.."] vector zero", oS) end
-    if(isWireZero(oA)) then return logStatus("Axis ["..nM.."] vector zero", oS) end
+    if(isWireZero(oT)) then return logStatus("Mode ["..nM.."] high vector zero", oS) end
+    if(isWireZero(oA)) then return logStatus("Mode ["..nM.."] axis vector zero", oS) end
     vH = setWireDiv(getWireXYZ( oT[1], oT[2], oT[3])) -- Nomalized top vector location
     vL = setWireDiv(getWireXYZ(-oT[1],-oT[2],-oT[3])) -- Nomalized bottom vector location
     vA = setWireDiv(getWireXYZ( oA[1], oA[2], oA[3])) -- Nomalized axis vector
   else return logStatus("Mode ["..nM.."]["..rT.."] not supported", oS) end
-  return setData(oE, iD, {tR[1], vH, vL, nM, vA, vN})
+  return setData(oE, iD, {rF, vH, vL, nM, vA, vN})
 end
 
-local function getPistonData(oE, iD, vR, iP)
+local function getPistonData(oE, iD, iP)
+  if(not isValid(oE)) then return nil end
+  local tP = getData(oE, iD); if(not tP) then return nil end
+  if(not iP) then return nil end; return tP[iP]
+end
+
+-- Evaluates the piston and always returns a number
+local function getPistonEval(oE, iD, vR)
   if(not isValid(oE)) then return 0 end
-  local tP = getData(oE, iD)
-  if(not tP) then return 0 end
-  if(iP) then return tP[iP] end
-  if(not tP[1]) then return 0 end
+  local tP = getData(oE, iD); if(not tP) then return 0 end
   return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
 end
 
 local function enSetupData(oE, iD, sT)
   if(not isValid(oE)) then return false end
-  local nM = getPistonData(oE, iD, nil, 4)
-  local tR = gtRoutines[nM] -- Read routine
-  return (sT == tostring(tR and tR[2] or ""))
+  local tP = getData(oE, iD); if(not tP) then return false end
+  local nM = tonumber(tP[4] or 0); if(nM <= 0) then return false end
+  local tR = gtRoutines[nM]; if(not tR) then return false end
+  return (sT == tostring(tR and tR[2] or gsInvType))
 end
 
 --[[ **************************** GLOBALS ( TUNING PARAMETER ) **************************** ]]
@@ -647,22 +660,22 @@ end
 
 __e2setcost(5)
 e2function number entity:getPiston(number iD, number nR)
-  return getPistonData(this, iD, nR)
+  return getPistonEval(this, iD, nR)
 end
 
 __e2setcost(5)
 e2function number entity:getPiston(string iD, number nR)
-  return getPistonData(this, iD, nR)
+  return getPistonEval(this, iD, nR)
 end
 
 __e2setcost(8)
 e2function number entity:getPiston(number iD, vector vR)
-  return getPistonData(this, iD, vR)
+  return getPistonEval(this, iD, vR)
 end
 
 __e2setcost(8)
 e2function number entity:getPiston(string iD, vector vR)
-  return getPistonData(this, iD, vR)
+  return getPistonEval(this, iD, vR)
 end
 
 --[[ **************************** HIGN AND LOW POINTS **************************** ]]
@@ -670,49 +683,49 @@ end
 __e2setcost(5)
 e2function number entity:getPistonMax(number iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
-  return getPistonData(this, iD, nil, 2)
+  return getPistonData(this, iD, 2)
 end
 
 __e2setcost(5)
 e2function number entity:getPistonMax(string iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
-  return getPistonData(this, iD, nil, 2)
+  return getPistonData(this, iD, 2)
 end
 
 __e2setcost(5)
 e2function number entity:getPistonMin(number iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
-  return getPistonData(this, iD, nil, 3)
+  return getPistonData(this, iD, 3)
 end
 
 __e2setcost(5)
 e2function number entity:getPistonMin(string iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
-  return getPistonData(this, iD, nil, 3)
+  return getPistonData(this, iD, 3)
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonMaxX(number iD)
   if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
-  return getWireCopy(getPistonData(this, iD, nil, 2))
+  return getWireCopy(getPistonData(this, iD, 2))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonMaxX(string iD)
   if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
-  return getWireCopy(getPistonData(this, iD, nil, 2))
+  return getWireCopy(getPistonData(this, iD, 2))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonMinX(number iD)
   if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
-  return getWireCopy(getPistonData(this, iD, nil, 3))
+  return getWireCopy(getPistonData(this, iD, 3))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonMinX(string iD)
   if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
-  return getWireCopy(getPistonData(this, iD, nil, 3))
+  return getWireCopy(getPistonData(this, iD, 3))
 end
 
 --[[ **************************** ADDITIONAL PARAMETERS **************************** ]]
@@ -720,127 +733,127 @@ end
 __e2setcost(5)
 e2function vector entity:getPistonAxis(number iD)
   if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
-  return getWireCopy(getPistonData(this, iD, nil, 5))
+  return getWireCopy(getPistonData(this, iD, 5))
 end
 
 __e2setcost(5)
 e2function vector entity:getPistonAxis(string iD)
   if(not enSetupData(this, iD, "vector")) then return getWireXYZ() end
-  return getWireCopy(getPistonData(this, iD, nil, 5))
+  return getWireCopy(getPistonData(this, iD, 5))
 end
 
 __e2setcost(5)
 e2function number entity:getPistonTune(number iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
-  return getPistonData(this, iD, nil, 6)
+  return getPistonData(this, iD, 6)
 end
 
 __e2setcost(5)
 e2function number entity:getPistonTune(string iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
-  return getPistonData(this, iD, nil, 6)
+  return getPistonData(this, iD, 6)
 end
 
 --[[ **************************** MODES CHECK FLAGS **************************** ]]
 
 __e2setcost(2)
 e2function number entity:isPistonSign(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 1) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonSign(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 1) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 1) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonWave(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 2) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 2) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonWave(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 2) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 2) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonWaveX(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 3) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonWaveX(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 3) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 3) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonSignX(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 4) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 4) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonSignX(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 4) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 4) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonRamp(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 5) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 5) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonRamp(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 5) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 5) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonTroc(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 6) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 6) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonTroc(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 6) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 6) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonPowr(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 7) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 7) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonPowr(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 7) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 7) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonExpo(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 8) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 8) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonExpo(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 8) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 8) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonLogn(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 9) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 9) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonLogn(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 9) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 9) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonTrpz(number iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 10) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 10) and 1 or 0)
 end
 
 __e2setcost(2)
 e2function number entity:isPistonTrpz(string iD)
-  return (((getPistonData(this, iD, nil, 4) or 0) == 10) and 1 or 0)
+  return (((getPistonData(this, iD, 4) or 0) == 10) and 1 or 0)
 end
 
 --[[ **************************** DELETE **************************** ]]
