@@ -95,6 +95,10 @@ end
 
 --[[ **************************** HELPER **************************** ]]
 
+local function getTuneNorm(nT)
+  return math.Clamp(tonumber(nT) or 0, 0, 500)
+end
+
 --[[
 Calculates normalized ramp output of the roll marker period
  * nP -> The roll marker period of the marker offset (R - H)
@@ -285,7 +289,7 @@ local function setPistonData(oS, oE, iD, oT, nM, oA, oN)
   -- Sign [1], sine [2] ramp [5] troc [6] data type (number)
   if(rT == "number") then -- Check number internals
     vH, vL = oT, getAngNorm(oT + 180) -- Normalize the high and low angle
-    vN = math.Clamp(tonumber(oN) or 0, 0, 500) -- Store the tuning coefficient
+    vN = getTuneNorm(oN) -- Store the tuning coefficient
   elseif(rT == "vector") then -- Cross product [3], [4] (vector)
     if(isWireZero(oT)) then return logStatus("Mode ["..nM.."] high vector zero", oS) end
     if(isWireZero(oA)) then return logStatus("Mode ["..nM.."] axis vector zero", oS) end
@@ -294,6 +298,12 @@ local function setPistonData(oS, oE, iD, oT, nM, oA, oN)
     vA = setWireDiv(getWireXYZ( oA[1], oA[2], oA[3])) -- Nomalized axis vector
   else return logStatus("Mode ["..nM.."]["..rT.."] not supported", oS) end
   return setData(oE, iD, {rF, vH, vL, nM, vA, vN})
+end
+
+local function setPistonParam(oE, iD, iP, vP)
+  if(not isValid(oE)) then return nil end
+  local tP = getData(oE, iD); if(not tP) then return nil end
+  if(not iP) then return nil end; tP[iP] = vP; return oE
 end
 
 local function getPistonData(oE, iD, iP)
@@ -306,7 +316,8 @@ end
 local function getPistonEval(oE, iD, vR)
   if(not isValid(oE)) then return 0 end
   local tP = getData(oE, iD); if(not tP) then return 0 end
-  return tP[1](vR, tP[2], tP[3], tP[4], tP[5], tP[6])
+  local bS, vO = pcall(tP[1], vR, tP[2], tP[3], tP[4], tP[5], tP[6])
+  return (bS and vO or 0)
 end
 
 local function enSetupData(oE, iD, sT)
@@ -322,7 +333,7 @@ end
 __e2setcost(1)
 e2function void setPistonTune(number nN)
   local tSpot = getExpressionSpot(self)
-  tSpot.Tune = math.Clamp(tonumber(nN) or 0, 0, 500)
+  tSpot.Tune = getTuneNorm(nN)
 end
 
 __e2setcost(1)
@@ -334,9 +345,17 @@ end
 --[[ **************************** GLOBALS ( BASE ENTITY ) **************************** ]]
 
 __e2setcost(1)
-e2function void setPistonBase(entity oB)
+e2function entity setPistonBase(entity oB)
   local tSpot = getExpressionSpot(self)
   tSpot.Base  = (isValid(oB) and oB or nil)
+  return tSpot.Base
+end
+
+__e2setcost(1)
+e2function entity entity:setPistonBase()
+  local tSpot = getExpressionSpot(self)
+  tSpot.Base  = (isValid(this) and this or nil)
+  return tSpot.Base
 end
 
 __e2setcost(1)
@@ -743,6 +762,78 @@ e2function vector entity:getPistonAxis(string iD)
 end
 
 __e2setcost(5)
+e2function entity entity:setPistonAxis(number iD, vector vA)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireCopy(vA))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(string iD, vector vA)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireCopy(vA))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(number iD, array vA)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(vA[1], vA[2], vA[3]))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(string iD, array vA)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(vA[1], vA[2], vA[3]))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(number iD, vector2 vA)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(vA[1], vA[2]))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(string iD, vector2 vA)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(vA[1], vA[2]))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(number iD, number nX, number nY, number nZ)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(nX, nY, nZ))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(string iD, number nX, number nY, number nZ)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(nX, nY, nZ))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(number iD, number nX, number nY)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(nX, nY))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(string iD, number nX, number nY)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(nX, nY))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(number iD, number nX)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(nX))
+end
+
+__e2setcost(5)
+e2function entity entity:setPistonAxis(string iD, number nX)
+  if(not enSetupData(this, iD, "vector")) then return nil end
+  return setPistonParam(this, iD, 5, getWireXYZ(nX))
+end
+
+__e2setcost(5)
 e2function number entity:getPistonTune(number iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
   return getPistonData(this, iD, 6)
@@ -752,6 +843,18 @@ __e2setcost(5)
 e2function number entity:getPistonTune(string iD)
   if(not enSetupData(this, iD, "number")) then return 0 end
   return getPistonData(this, iD, 6)
+end
+
+__e2setcost(5)
+e2function number entity:setPistonTune(number iD, number nT)
+  if(not enSetupData(this, iD, "number")) then return 0 end
+  return setPistonParam(this, iD, 6, getTuneNorm(nT))
+end
+
+__e2setcost(5)
+e2function number entity:setPistonTune(string iD, number nT)
+  if(not enSetupData(this, iD, "number")) then return 0 end
+  return setPistonParam(this, iD, 6, getTuneNorm(nT))
 end
 
 --[[ **************************** MODES CHECK FLAGS **************************** ]]
