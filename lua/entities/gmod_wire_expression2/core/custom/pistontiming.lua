@@ -1,4 +1,4 @@
---[[ **************************** CONFIGURATION **************************** ]]
+--[[ **************************** REGISTER **************************** ]]
 
 E2Lib.RegisterExtension("pistontiming", true,
   "Allows E2 chips to attach pistons to the engine crankshaft props",
