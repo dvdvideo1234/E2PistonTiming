@@ -98,8 +98,8 @@ local function getExpressionSpot(oSelf)
   if(not tSpot) then              -- Check expression chip spot presence
     gtChipInfo[oRefr] = {}        -- Allocate table when not available
     tSpot = gtChipInfo[oRefr]     -- Refer the allocated table to store into
-    tSpot.Axis = Vector(0,0,0)    -- Rotation axis stored as a local vector relative to BASE
-    tSpot.Mark = Vector(0,0,0)    -- Roll zero-mark stored as a local vector relative to SHAFT
+    tSpot.Axis = Vector()         -- Rotation axis stored as a local vector relative to BASE
+    tSpot.Mark = Vector()         -- Roll zero-mark stored as a local vector relative to SHAFT
     tSpot.Base = nil              -- Entity for overloading and also the engine BASE entity
     tSpot.Tune = 10               -- Global coefficient number for timed piston modes
   end; return tSpot               -- Return expression chip dedicated spot
